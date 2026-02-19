@@ -318,9 +318,14 @@
             const containerW = canvasContainer.clientWidth;
             const containerH = canvasContainer.clientHeight;
             
-            // Subtract a little padding (40px) so the wall doesn't touch the edges of the screen
-            const maxW = containerW - 40;
-            const maxH = containerH - 40;
+            // FIX: Subtract a larger buffer (150px) so the wall has plenty of grey space around it
+            // This prevents it from hiding behind the BOM panel.
+            let maxW = containerW - 150;
+            let maxH = containerH - 150;
+            
+            // FIX: Set a maximum limit so it doesn't get ridiculously huge on large monitors
+            if (maxW > 1000) maxW = 1000;
+            if (maxH > 700) maxH = 700;
             
             const scale = Math.min(maxW / realW, maxH / realH);
             
