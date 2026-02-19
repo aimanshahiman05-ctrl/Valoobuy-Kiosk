@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wall Design Customizer - Pro</title>
+    <title>Wall Design Customizer - Kiosk Edition</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+
     <style>
         :root {
             --brand-color: #e60000; 
@@ -17,6 +21,7 @@
             flex-direction: column; 
             height: 100vh; 
             background-color: var(--bg-color); 
+            overflow: hidden; /* Prevents whole-page bouncing on touch screens */
         }
 
         .controls { 
@@ -35,10 +40,10 @@
             border: 1px solid #ccc; 
             border-radius: 4px; 
             margin-left: 5px;
+            font-size: 14px; /* Larger text for touch */
         }
         .controls input { width: 70px; }
         
-        /* Highlight the new placement mode selector */
         #placement-mode {
             background-color: #fff3f3;
             border: 2px solid var(--brand-color);
@@ -50,10 +55,11 @@
             background-color: var(--brand-color);
             color: white;
             border: none;
-            padding: 9px 15px;
+            padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
+            font-size: 15px; /* Larger button for touch */
         }
         .controls button:hover { background-color: #cc0000; }
         
@@ -61,6 +67,8 @@
         
         .sidebar { 
             width: 280px; 
+            /* Added min-width to ensure it doesn't crush on weird aspect ratios */
+            min-width: 250px; 
             background: white; 
             border-right: 1px solid #ddd; 
             padding: 15px; 
@@ -76,6 +84,8 @@
             border-radius: 6px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             transition: transform 0.2s;
+            /* Required to prevent scrolling while dragging on mobile/kiosk */
+            touch-action: none; 
         }
         .item:active { cursor: grabbing; transform: scale(0.98); }
         .item img { max-width: 100%; height: 80px; object-fit: contain; pointer-events: none; }
@@ -88,7 +98,9 @@
             align-items: center; 
             justify-content: center; 
             padding: 20px; 
-            overflow: auto; 
+            /* Ensures this area expands to fill the screen */
+            width: 100%; 
+            height: 100%; 
             background: #e9ecef; 
         }
         
@@ -99,8 +111,7 @@
             border: 2px solid #333; 
             position: relative; 
             overflow: hidden; 
-            width: 700px; 
-            height: 500px; 
+            /* REMOVED FIXED 700x500 WIDTH & HEIGHT. JS Handles this now! */
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
@@ -150,7 +161,7 @@
         <label style="margin-left: 20px;">Category: 
             <select id="category-filter" onchange="filterItems()">
                 <option value="all">All Items</option>
-                </select>
+            </select>
         </label>
 
         <button style="margin-left: auto;" onclick="clearWall()">Clear Wall</button>
@@ -161,7 +172,7 @@
             <p id="loading-text" style="text-align: center; color: #666;">Loading items from database...</p>
         </div>
 
-        <div class="canvas-area">
+        <div class="canvas-area" id="canvas-container">
             <div class="wall" id="wall"></div>
         </div>
     </div>
@@ -173,17 +184,21 @@
     </div>
 
     <script>
+        // Initialize Touch Polyfill for Kiosks
+        MobileDragDrop.polyfill({
+            // Allows dragging immediately upon touching the screen
+            holdToDrag: 0 
+        });
+
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
         
         const wall = document.getElementById('wall');
+        const canvasContainer = document.getElementById('canvas-container'); // Need this for measuring screen size
         let itemData = {};
 
         let dragData = null; 
         let dragGhost = null;
 
-        // ==========================================
-        // 2. GOOGLE SHEETS FETCH & CATEGORY LOGIC
-        // ==========================================
         async function loadInventory() {
             try {
                 const response = await fetch(GOOGLE_SHEET_API_URL);
@@ -193,25 +208,18 @@
                 const categorySelect = document.getElementById('category-filter');
                 inventoryDiv.innerHTML = ''; 
 
-                // Use a Set to store unique categories automatically
                 const uniqueCategories = new Set();
 
                 items.forEach(item => {
                     if (!item.name) return; 
 
-                    // 1. Add category to our list of unique categories
-                    if (item.category) {
-                        uniqueCategories.add(item.category);
-                    }
+                    if (item.category) uniqueCategories.add(item.category);
 
-                    // 2. Create the sidebar item container
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'item';
                     itemDiv.draggable = true;
                     
-                    // Attach the category to the element so we can filter it later
                     itemDiv.dataset.category = item.category || 'Uncategorized';
-                    
                     itemDiv.dataset.name = item.name;
                     itemDiv.dataset.realWidth = item.width;
                     itemDiv.dataset.realHeight = item.height;
@@ -241,7 +249,6 @@
                     inventoryDiv.appendChild(itemDiv);
                 });
 
-                // 3. Populate the Dropdown Menu with the unique categories
                 uniqueCategories.forEach(category => {
                     const option = document.createElement('option');
                     option.value = category;
@@ -256,13 +263,11 @@
             }
         }
 
-        // --- NEW FILTER FUNCTION ---
         function filterItems() {
             const selectedCategory = document.getElementById('category-filter').value;
             const allItems = document.querySelectorAll('.sidebar .item');
 
             allItems.forEach(item => {
-                // Show the item if "All" is selected, OR if the item's category matches the dropdown
                 if (selectedCategory === 'all' || item.dataset.category === selectedCategory) {
                     item.style.display = 'block';
                 } else {
@@ -284,11 +289,9 @@
                     let totalPanels = 0;
 
                     if (data.type === 'panel') {
-                        // Math for Wall Panels (linear length)
                         const totalLinearCm = data.count * wallRealHeightCm;
                         totalPanels = Math.ceil(totalLinearCm / data.height);
                     } else {
-                        // Math for Decor/TVs (just count the individual pieces)
                         totalPanels = data.count;
                     }
                     
@@ -304,19 +307,32 @@
             updateBOM();         
         }
 
+        // ==========================================
+        // UPGRADED DYNAMIC SCALING MATH
+        // ==========================================
         function updateVisualWall() {
             const realW = parseFloat(document.getElementById('real-width').value) || 300;
             const realH = parseFloat(document.getElementById('real-height').value) || 250;
-            const maxW = 700;
-            const maxH = 500;
+            
+            // Measure the exact size of the grey canvas area on the current screen
+            const containerW = canvasContainer.clientWidth;
+            const containerH = canvasContainer.clientHeight;
+            
+            // Subtract a little padding (40px) so the wall doesn't touch the edges of the screen
+            const maxW = containerW - 40;
+            const maxH = containerH - 40;
+            
             const scale = Math.min(maxW / realW, maxH / realH);
             
             wall.style.width = (realW * scale) + 'px';
             wall.style.height = (realH * scale) + 'px';
+            
             clearWall(); 
         }
 
-        // UPGRADED MATH: Handles both Panels and Overlays
+        // Ensure the wall resizes automatically if the kiosk orientation is rotated or window is resized
+        window.addEventListener('resize', updateVisualWall);
+
         function calculateDropPosition(e) {
             if (!dragData) return { left: 0, top: 0, isFull: true, width: 0, height: 0, mode: 'panel' };
             
@@ -327,12 +343,15 @@
             const itemPixelHeight = dragData.realHeight * pixelsPerCm;
             
             const wallRect = wall.getBoundingClientRect();
-            let proposedLeft = e.clientX - wallRect.left - (itemPixelWidth / 2);
-            let proposedTop = e.clientY - wallRect.top - (itemPixelHeight / 2);
+            // Account for touch events (touches array) or standard mouse events (clientX)
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            let proposedLeft = clientX - wallRect.left - (itemPixelWidth / 2);
+            let proposedTop = clientY - wallRect.top - (itemPixelHeight / 2);
 
             const mode = document.getElementById('placement-mode').value;
 
-            // IF MODE IS OVERLAY/DECOR (Free Placement)
             if (mode === 'overlay') {
                 return { 
                     left: proposedLeft, 
@@ -344,10 +363,8 @@
                 };
             }
 
-            // IF MODE IS WALL PANEL (Smart Snapping & Push)
             const SNAP = 20;
             if (proposedLeft < SNAP) proposedLeft = 0;
-            // *Removed the right-side wall snap so the panel can hang off the edge*
 
             const existingCols = wall.querySelectorAll('.dropped-panel'); 
             existingCols.forEach(col => {
@@ -359,7 +376,6 @@
                 if (Math.abs((proposedLeft + itemPixelWidth) - exLeft) < SNAP) proposedLeft = exLeft - itemPixelWidth;
             });
 
-            // Auto-Push logic
             let isOverlapping = true;
             let loops = 0;
             while (isOverlapping && loops < 50) { 
@@ -371,18 +387,15 @@
                     const exRight = exLeft + parseFloat(col.style.width);
                     if (proposedLeft < exRight - 1 && proposedRight > exLeft + 1) {
                         isOverlapping = true;
-                        proposedLeft = exRight; // Push it exactly to the right of the previous panel
+                        proposedLeft = exRight; 
                     }
                 });
                 loops++;
             }
             
-            // *Removed the final boundary check. We WANT it to push past the right edge now!*
-
-            // Verify if the wall is actually 100% full (meaning no gaps left at all)
             let wallIsFull = false;
             if (proposedLeft >= wall.clientWidth - 1) {
-                wallIsFull = true; // The starting position of the panel is off the screen
+                wallIsFull = true; 
             }
 
             return { 
@@ -440,14 +453,11 @@
             newCol.classList.add('dropped-col');
             newCol.style.position = 'absolute';
             
-            // FIX 1: Add +1 to the width to close the sub-pixel rendering gaps
             newCol.style.width = (position.width + 1) + 'px'; 
-            
             newCol.style.height = position.height + 'px';
             newCol.style.left = position.left + 'px';
             newCol.style.top = position.top + 'px';
 
-            // Apply different styling based on the mode selected
             if (position.mode === 'overlay') {
                 newCol.classList.add('dropped-overlay'); 
                 newCol.style.zIndex = '10'; 
@@ -456,7 +466,6 @@
                 newCol.style.backgroundRepeat = 'no-repeat';
                 newCol.style.boxShadow = '2px 2px 15px rgba(0,0,0,0.5)'; 
                 
-                // Overlay Resizing
                 newCol.style.resize = 'both';
                 newCol.style.overflow = 'hidden';
                 newCol.style.borderBottom = '4px solid var(--brand-color)'; 
@@ -470,7 +479,6 @@
                 
                 newCol.style.backgroundImage = `url('${dragData.image}')`;
                 
-                // FIX 2: Set width to 100% so the image stretches to cover that extra 1 pixel gap
                 newCol.style.backgroundSize = `100% ${itemPixelHeightForRepeat}px`;
                 newCol.style.backgroundRepeat = 'repeat-y'; 
             }
@@ -484,7 +492,6 @@
 
             wall.appendChild(newCol);
 
-            // Save data to BOM
             if (!itemData[itemName]) {
                 itemData[itemName] = { count: 0, height: dragData.realHeight, type: position.mode };
             }
@@ -494,7 +501,8 @@
 
         window.onload = () => {
             loadInventory();
-            updateVisualWall();
+            // A slight delay ensures the container has fully expanded before calculating math
+            setTimeout(updateVisualWall, 100);
         };
 
     </script>
