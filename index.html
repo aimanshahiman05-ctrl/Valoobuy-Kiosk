@@ -286,9 +286,7 @@
                     `;
 
                     itemDiv.addEventListener('dragstart', (e) => {
-                        const img = itemDiv.querySelector('img');
-                        img.style.transform = 'scale(1)';
-
+                        // Removed the shrinking code! The image will now stay zoomed in the menu.
                         dragData = {
                             name: itemDiv.dataset.name,
                             image: itemDiv.dataset.image,
@@ -299,9 +297,7 @@
                     });
 
                     itemDiv.addEventListener('dragend', () => {
-                        const img = itemDiv.querySelector('img');
-                        img.style.transform = 'scale(1.7)';
-
+                        // Removed the resizing code!
                         if (dragGhost) { dragGhost.remove(); dragGhost = null; }
                         dragData = null;
                     });
