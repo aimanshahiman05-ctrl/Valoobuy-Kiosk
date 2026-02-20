@@ -242,23 +242,14 @@
             const inventoryDiv = document.getElementById('inventory');
             const categorySelect = document.getElementById('category-filter');
 
-            try {
-                let items;
-                
-                // Cache System: Loads instantly if data is less than 1 hour old
-                const cachedData = localStorage.getItem('valoobuy_wall_data');
-                const cachedTime = localStorage.getItem('valoobuy_wall_time');
+            // Show loading text while waiting for Google Sheets
+            inventoryDiv.innerHTML = '<p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading fresh items...</p>';
 
-                if (cachedData && cachedTime && (Date.now() - cachedTime < 3600000)) {
-                    console.log("Loading instantly from local cache");
-                    items = JSON.parse(cachedData);
-                } else {
-                    console.log("Fetching fresh data from Google Sheets");
-                    const response = await fetch(GOOGLE_SHEET_API_URL);
-                    items = await response.json();
-                    localStorage.setItem('valoobuy_wall_data', JSON.stringify(items));
-                    localStorage.setItem('valoobuy_wall_time', Date.now().toString());
-                }
+            try {
+                // ALWAYS fetch live data directly from Google Sheets
+                console.log("Fetching fresh data from Google Sheets...");
+                const response = await fetch(GOOGLE_SHEET_API_URL);
+                const items = await response.json();
 
                 inventoryDiv.innerHTML = ''; 
                 const uniqueCategories = new Set();
@@ -286,7 +277,7 @@
                     `;
 
                     itemDiv.addEventListener('dragstart', (e) => {
-                        // Removed the shrinking code! The image will now stay zoomed in the menu.
+                        // Image stays zoomed in the menu perfectly!
                         dragData = {
                             name: itemDiv.dataset.name,
                             image: itemDiv.dataset.image,
@@ -297,7 +288,6 @@
                     });
 
                     itemDiv.addEventListener('dragend', () => {
-                        // Removed the resizing code!
                         if (dragGhost) { dragGhost.remove(); dragGhost = null; }
                         dragData = null;
                     });
@@ -305,6 +295,7 @@
                     inventoryDiv.appendChild(itemDiv);
                 });
 
+                // Populate the dropdown filter
                 uniqueCategories.forEach(category => {
                     const option = document.createElement('option');
                     option.value = category;
@@ -314,7 +305,7 @@
 
             } catch (error) {
                 console.error('Error loading inventory:', error);
-                document.getElementById('inventory').innerHTML = `<p style="color: red; text-align: center;">Error loading items. Please check your internet connection.</p>`;
+                inventoryDiv.innerHTML = `<p style="color: red; text-align: center;">Error loading items. Please check your internet connection.</p>`;
             }
         }
 
