@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wall Design Customizer - Kiosk Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wall Design Customizer - Multi-Unit Edition</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
@@ -21,33 +21,34 @@
             flex-direction: column; 
             height: 100vh; 
             background-color: var(--bg-color); 
-            overflow: hidden; /* Prevents whole-page bouncing on touch screens */
+            overflow: hidden; 
+            overscroll-behavior-y: none; 
         }
 
         .controls { 
             background: white; 
-            padding: 15px 20px; 
+            padding: 10px 15px; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
             display: flex; 
-            gap: 15px; 
+            gap: 10px; 
             align-items: center; 
             z-index: 20; 
             flex-wrap: wrap;
+            justify-content: center; 
         }
-        .controls label { font-weight: bold; font-size: 14px; }
+        .controls label { font-weight: bold; font-size: 13px; }
         .controls input, .controls select { 
-            padding: 8px; 
+            padding: 6px; 
             border: 1px solid #ccc; 
             border-radius: 4px; 
             margin-left: 5px;
-            font-size: 14px; /* Larger text for touch */
+            font-size: 13px; 
         }
-        .controls input { width: 70px; }
+        .controls input { width: 50px; }
         
         #placement-mode {
             background-color: #fff3f3;
             border: 2px solid var(--brand-color);
-            font-weight: bold;
             color: var(--brand-color);
         }
 
@@ -55,11 +56,10 @@
             background-color: var(--brand-color);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 15px; /* Larger button for touch */
         }
         .controls button:hover { background-color: #cc0000; }
         
@@ -67,7 +67,6 @@
         
         .sidebar { 
             width: 280px; 
-            /* Added min-width to ensure it doesn't crush on weird aspect ratios */
             min-width: 250px; 
             background: white; 
             border-right: 1px solid #ddd; 
@@ -84,21 +83,19 @@
             border-radius: 6px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             transition: transform 0.2s;
-            /* Required to prevent scrolling while dragging on mobile/kiosk */
             touch-action: none; 
         }
         .item:active { cursor: grabbing; transform: scale(0.98); }
-        .item img { max-width: 100%; height: 80px; object-fit: contain; pointer-events: none; }
-        .item p { margin: 10px 0 0 0; font-size: 14px; font-weight: bold; }
-        .item small { color: #666; font-size: 12px; }
+        .item img { max-width: 100%; height: 70px; object-fit: contain; pointer-events: none; }
+        .item p { margin: 10px 0 0 0; font-size: 13px; font-weight: bold; }
+        .item small { color: #666; font-size: 11px; }
 
         .canvas-area { 
             flex: 1; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            padding: 20px; 
-            /* Ensures this area expands to fill the screen */
+            padding: 10px; 
             width: 100%; 
             height: 100%; 
             background: #e9ecef; 
@@ -111,65 +108,82 @@
             border: 2px solid #333; 
             position: relative; 
             overflow: hidden; 
-            /* REMOVED FIXED 700x500 WIDTH & HEIGHT. JS Handles this now! */
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
-        .dropped-col { 
-            position: absolute; 
-            cursor: pointer; 
-            user-select: none; 
-            box-shadow: inset -1px 0 3px rgba(0,0,0,0.2);
-        }
+        .dropped-col { position: absolute; cursor: pointer; user-select: none; }
         .dropped-col:hover { outline: 2px solid var(--brand-color); outline-offset: -2px; z-index: 50 !important; }
 
         .bom-panel { 
             position: absolute; 
             bottom: 20px; 
             right: 20px; 
-            background: white; 
+            background: rgba(255, 255, 255, 0.95); 
             padding: 15px; 
             border-top: 4px solid var(--brand-color); 
             box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
             border-radius: 6px; 
-            min-width: 220px; 
+            min-width: 200px; 
             z-index: 30;
         }
-        .bom-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
-        .bom-list li { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-bottom: 5px; 
-            border-bottom: 1px solid #eee; 
-            padding-bottom: 5px; 
+        .bom-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+        .bom-list li { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        @media (max-width: 768px) {
+            .workspace { flex-direction: column-reverse; }
+            .sidebar {
+                width: 100%;
+                min-width: 100%;
+                height: 140px; 
+                border-right: none;
+                border-top: 2px solid #ddd;
+                display: flex;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 10px;
+                box-sizing: border-box;
+                gap: 15px;
+                background: #fff;
+            }
+            .item { min-width: 120px; margin-bottom: 0; padding: 5px; }
+            .bom-panel { bottom: 160px; right: 10px; padding: 10px; min-width: 150px; }
+            .bom-panel h3 { margin-bottom: 5px; font-size: 14px; }
         }
     </style>
 </head>
 <body>
 
     <div class="controls">
-        <label>Real Wall Width (cm): <input type="number" id="real-width" value="300" onchange="updateVisualWall()"></label>
-        <label>Real Wall Height (cm): <input type="number" id="real-height" value="250" onchange="updateVisualWall()"></label>
+        <label>Width: <input type="number" id="real-width" value="300" onchange="updateVisualWall()"></label>
+        <label>Height: <input type="number" id="real-height" value="250" onchange="updateVisualWall()"></label>
+        <select id="unit-selector" onchange="updateVisualWall()">
+            <option value="cm">cm</option>
+            <option value="mm">mm</option>
+            <option value="inch">inch</option>
+            <option value="ft">ft</option>
+            <option value="m">m</option>
+        </select>
         
-        <label style="margin-left: 20px;">Placement Mode: 
+        <label style="margin-left: 10px;">Mode: 
             <select id="placement-mode">
-                <option value="panel">Wall Panel (Fills Height, No Overlap)</option>
-                <option value="overlay">Decor/TV (Free Move, Can Overlap)</option>
+                <option value="panel">Wall Panel (Auto-Fit)</option>
+                <option value="overlay">Decor (Free Move)</option>
             </select>
         </label>
 
-        <label style="margin-left: 20px;">Category: 
+        <label>Filter: 
             <select id="category-filter" onchange="filterItems()">
                 <option value="all">All Items</option>
             </select>
         </label>
 
-        <button style="margin-left: auto;" onclick="clearWall()">Clear Wall</button>
+        <button onclick="clearWall()">Clear</button>
     </div>
 
     <div class="workspace">
         <div class="sidebar" id="inventory">
-            <p id="loading-text" style="text-align: center; color: #666;">Loading items from database...</p>
+            <p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading items...</p>
         </div>
 
         <div class="canvas-area" id="canvas-container">
@@ -180,24 +194,41 @@
     <div class="bom-panel">
         <h3 style="margin-top:0;">Items Used</h3>
         <ul class="bom-list" id="bom-list"><li><i>No items added yet.</i></li></ul>
-        <p style="font-size: 11px; color: #888; margin-top: 10px;">*Double-click an item on the wall to remove it.</p>
     </div>
 
     <script>
-        // Initialize Touch Polyfill for Kiosks
-        MobileDragDrop.polyfill({
-            // Allows dragging immediately upon touching the screen
-            holdToDrag: 0 
-        });
+        MobileDragDrop.polyfill({ holdToDrag: 300 });
+        window.addEventListener('touchmove', function() {}, {passive: false});
 
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
         
         const wall = document.getElementById('wall');
-        const canvasContainer = document.getElementById('canvas-container'); // Need this for measuring screen size
+        const canvasContainer = document.getElementById('canvas-container'); 
         let itemData = {};
-
         let dragData = null; 
         let dragGhost = null;
+
+        // ==========================================
+        // NEW: UNIT CONVERSION ENGINE
+        // ==========================================
+        // This function grabs the numbers from the input boxes and instantly 
+        // converts them to centimeters so all our existing math continues to work perfectly.
+        function getWallDimensionsInCm() {
+            const rawW = parseFloat(document.getElementById('real-width').value) || 300;
+            const rawH = parseFloat(document.getElementById('real-height').value) || 250;
+            const unit = document.getElementById('unit-selector').value;
+            
+            let factor = 1; // Default is cm
+            if (unit === 'mm') factor = 0.1;
+            if (unit === 'inch') factor = 2.54;
+            if (unit === 'ft') factor = 30.48;
+            if (unit === 'm') factor = 100;
+
+            return {
+                w: rawW * factor,
+                h: rawH * factor
+            };
+        }
 
         async function loadInventory() {
             try {
@@ -212,7 +243,6 @@
 
                 items.forEach(item => {
                     if (!item.name) return; 
-
                     if (item.category) uniqueCategories.add(item.category);
 
                     const itemDiv = document.createElement('div');
@@ -228,7 +258,7 @@
                     itemDiv.innerHTML = `
                         <img src="${item.image}" alt="${item.name}">
                         <p>${item.name}</p>
-                        <small>${item.width}cm W x ${item.height}cm H</small>
+                        <small>${item.width}x${item.height}cm</small>
                     `;
 
                     itemDiv.addEventListener('dragstart', (e) => {
@@ -258,8 +288,7 @@
 
             } catch (error) {
                 console.error('Error loading inventory:', error);
-                document.getElementById('inventory').innerHTML = `
-                    <p style="color: red; text-align: center;">Error loading items from Google Sheet.</p>`;
+                document.getElementById('inventory').innerHTML = `<p style="color: red; text-align: center;">Error loading items.</p>`;
             }
         }
 
@@ -281,7 +310,8 @@
             bomList.innerHTML = ''; 
             let hasItems = false;
             
-            const wallRealHeightCm = parseFloat(document.getElementById('real-height').value) || 300;
+            // Get height in CM using the conversion engine
+            const wallRealHeightCm = getWallDimensionsInCm().h;
             
             for (const [name, data] of Object.entries(itemData)) {
                 if (data.count > 0) {
@@ -307,23 +337,21 @@
             updateBOM();         
         }
 
-        // ==========================================
-        // UPGRADED DYNAMIC SCALING MATH
-        // ==========================================
         function updateVisualWall() {
-            const realW = parseFloat(document.getElementById('real-width').value) || 300;
-            const realH = parseFloat(document.getElementById('real-height').value) || 250;
+            // Use the conversion engine
+            const dims = getWallDimensionsInCm();
+            const realW = dims.w;
+            const realH = dims.h;
             
-            // Measure the exact size of the grey canvas area on the current screen
             const containerW = canvasContainer.clientWidth;
             const containerH = canvasContainer.clientHeight;
             
-            // FIX: Subtract a larger buffer (150px) so the wall has plenty of grey space around it
-            // This prevents it from hiding behind the BOM panel.
-            let maxW = containerW - 150;
-            let maxH = containerH - 150;
+            const isMobile = window.innerWidth <= 768;
+            const buffer = isMobile ? 40 : 150;
+
+            let maxW = containerW - buffer;
+            let maxH = containerH - buffer;
             
-            // FIX: Set a maximum limit so it doesn't get ridiculously huge on large monitors
             if (maxW > 1000) maxW = 1000;
             if (maxH > 700) maxH = 700;
             
@@ -335,20 +363,20 @@
             clearWall(); 
         }
 
-        // Ensure the wall resizes automatically if the kiosk orientation is rotated or window is resized
         window.addEventListener('resize', updateVisualWall);
 
         function calculateDropPosition(e) {
             if (!dragData) return { left: 0, top: 0, isFull: true, width: 0, height: 0, mode: 'panel' };
             
-            const wallRealWidthCm = parseFloat(document.getElementById('real-width').value) || 300;
+            // Get width in CM using the conversion engine
+            const wallRealWidthCm = getWallDimensionsInCm().w;
             const pixelsPerCm = wall.clientWidth / wallRealWidthCm; 
             
             const itemPixelWidth = dragData.realWidth * pixelsPerCm;
             const itemPixelHeight = dragData.realHeight * pixelsPerCm;
             
             const wallRect = wall.getBoundingClientRect();
-            // Account for touch events (touches array) or standard mouse events (clientX)
+            
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
@@ -358,14 +386,7 @@
             const mode = document.getElementById('placement-mode').value;
 
             if (mode === 'overlay') {
-                return { 
-                    left: proposedLeft, 
-                    top: proposedTop, 
-                    width: itemPixelWidth, 
-                    height: itemPixelHeight, 
-                    isFull: false, 
-                    mode: 'overlay' 
-                };
+                return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: false, mode: 'overlay' };
             }
 
             const SNAP = 20;
@@ -403,14 +424,7 @@
                 wallIsFull = true; 
             }
 
-            return { 
-                left: proposedLeft, 
-                top: 0, 
-                width: itemPixelWidth, 
-                height: wall.clientHeight, 
-                isFull: wallIsFull, 
-                mode: 'panel' 
-            };
+            return { left: proposedLeft, top: 0, width: itemPixelWidth, height: wall.clientHeight, isFull: wallIsFull, mode: 'panel' };
         }
 
         wall.addEventListener('dragover', (e) => {
@@ -479,11 +493,12 @@
                 newCol.classList.add('dropped-panel'); 
                 newCol.style.zIndex = '1'; 
                 
-                const pixelsPerCm = wall.clientWidth / (parseFloat(document.getElementById('real-width').value) || 300); 
+                // Get width in CM using the conversion engine
+                const wallRealWidthCm = getWallDimensionsInCm().w;
+                const pixelsPerCm = wall.clientWidth / wallRealWidthCm; 
                 const itemPixelHeightForRepeat = dragData.realHeight * pixelsPerCm;
                 
                 newCol.style.backgroundImage = `url('${dragData.image}')`;
-                
                 newCol.style.backgroundSize = `100% ${itemPixelHeightForRepeat}px`;
                 newCol.style.backgroundRepeat = 'repeat-y'; 
             }
@@ -506,7 +521,6 @@
 
         window.onload = () => {
             loadInventory();
-            // A slight delay ensures the container has fully expanded before calculating math
             setTimeout(updateVisualWall, 100);
         };
 
