@@ -392,14 +392,16 @@
                 
                 // Horizontal Snap (If next to each other vertically)
                 if (proposedTop < exBottom && proposedTop + itemPixelHeight > exTop) {
-                    if (Math.abs(proposedLeft - exRight) < SNAP) proposedLeft = exRight;
-                    if (Math.abs((proposedLeft + itemPixelWidth) - exLeft) < SNAP) proposedLeft = exLeft - itemPixelWidth;
+                    // FIX: Force a 1-pixel overlap to hide the white gaps
+                    if (Math.abs(proposedLeft - exRight) < SNAP) proposedLeft = exRight - 1;
+                    if (Math.abs((proposedLeft + itemPixelWidth) - exLeft) < SNAP) proposedLeft = exLeft - itemPixelWidth + 1;
                 }
 
                 // Vertical Snap (If above/below each other horizontally)
                 if (proposedLeft < exRight && proposedLeft + itemPixelWidth > exLeft) {
-                    if (Math.abs(proposedTop - exBottom) < SNAP) proposedTop = exBottom;
-                    if (Math.abs((proposedTop + itemPixelHeight) - exTop) < SNAP) proposedTop = exTop - itemPixelHeight;
+                    // FIX: Force a 1-pixel overlap vertically as well
+                    if (Math.abs(proposedTop - exBottom) < SNAP) proposedTop = exBottom - 1;
+                    if (Math.abs((proposedTop + itemPixelHeight) - exTop) < SNAP) proposedTop = exTop - itemPixelHeight + 1;
                 }
             });
 
@@ -421,7 +423,8 @@
                     if (proposedLeft < exRight - 1 && proposedRight > exLeft + 1 && 
                         proposedTop < exBottom - 1 && proposedBottom > exTop + 1) {
                         isOverlapping = true;
-                        proposedLeft = exRight; 
+                        // FIX: Push it to exactly 1px inside the previous panel
+                        proposedLeft = exRight - 1; 
                     }
                 });
                 loops++;
