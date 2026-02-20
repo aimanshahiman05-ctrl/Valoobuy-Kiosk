@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wall Design Customizer - Multi-Unit Edition</title>
+    <title>Wall Design Customizer - Full Manual Control</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
@@ -167,7 +167,7 @@
         
         <label style="margin-left: 10px;">Mode: 
             <select id="placement-mode">
-                <option value="panel">Wall Panel (Auto-Fit)</option>
+                <option value="panel">Wall Panel (Exact Size)</option>
                 <option value="overlay">Decor (Free Move)</option>
             </select>
         </label>
@@ -208,26 +208,18 @@
         let dragData = null; 
         let dragGhost = null;
 
-        // ==========================================
-        // NEW: UNIT CONVERSION ENGINE
-        // ==========================================
-        // This function grabs the numbers from the input boxes and instantly 
-        // converts them to centimeters so all our existing math continues to work perfectly.
         function getWallDimensionsInCm() {
             const rawW = parseFloat(document.getElementById('real-width').value) || 300;
             const rawH = parseFloat(document.getElementById('real-height').value) || 250;
             const unit = document.getElementById('unit-selector').value;
             
-            let factor = 1; // Default is cm
+            let factor = 1; 
             if (unit === 'mm') factor = 0.1;
             if (unit === 'inch') factor = 2.54;
             if (unit === 'ft') factor = 30.48;
             if (unit === 'm') factor = 100;
 
-            return {
-                w: rawW * factor,
-                h: rawH * factor
-            };
+            return { w: rawW * factor, h: rawH * factor };
         }
 
         async function loadInventory() {
@@ -305,27 +297,19 @@
             });
         }
 
+        // ==========================================
+        // BOM NOW COUNTS EXACT DROPS
+        // ==========================================
         function updateBOM() {
             const bomList = document.getElementById('bom-list');
             bomList.innerHTML = ''; 
             let hasItems = false;
             
-            // Get height in CM using the conversion engine
-            const wallRealHeightCm = getWallDimensionsInCm().h;
-            
             for (const [name, data] of Object.entries(itemData)) {
                 if (data.count > 0) {
                     hasItems = true;
-                    let totalPanels = 0;
-
-                    if (data.type === 'panel') {
-                        const totalLinearCm = data.count * wallRealHeightCm;
-                        totalPanels = Math.ceil(totalLinearCm / data.height);
-                    } else {
-                        totalPanels = data.count;
-                    }
-                    
-                    bomList.innerHTML += `<li><span>${name}</span> <b>x${totalPanels}</b></li>`;
+                    // Because auto-stretch is disabled, 1 drop = exactly 1 panel on the wall.
+                    bomList.innerHTML += `<li><span>${name}</span> <b>x${data.count}</b></li>`;
                 }
             }
             if (!hasItems) bomList.innerHTML = '<li><i>No items added yet.</i></li>';
@@ -338,7 +322,6 @@
         }
 
         function updateVisualWall() {
-            // Use the conversion engine
             const dims = getWallDimensionsInCm();
             const realW = dims.w;
             const realH = dims.h;
@@ -365,10 +348,12 @@
 
         window.addEventListener('resize', updateVisualWall);
 
+        // ==========================================
+        // UPGRADED MATH: EXACT HEIGHT & 2D SNAPPING
+        // ==========================================
         function calculateDropPosition(e) {
             if (!dragData) return { left: 0, top: 0, isFull: true, width: 0, height: 0, mode: 'panel' };
             
-            // Get width in CM using the conversion engine
             const wallRealWidthCm = getWallDimensionsInCm().w;
             const pixelsPerCm = wall.clientWidth / wallRealWidthCm; 
             
@@ -389,29 +374,52 @@
                 return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: false, mode: 'overlay' };
             }
 
+            // --- 2D PANEL SNAPPING ---
             const SNAP = 20;
+            
+            // Snap to wall edges
             if (proposedLeft < SNAP) proposedLeft = 0;
+            if (proposedTop < SNAP) proposedTop = 0;
 
             const existingCols = wall.querySelectorAll('.dropped-panel'); 
             existingCols.forEach(col => {
                 const exLeft = parseFloat(col.style.left);
+                const exTop = parseFloat(col.style.top);
                 const exWidth = parseFloat(col.style.width);
+                const exHeight = parseFloat(col.style.height);
                 const exRight = exLeft + exWidth;
+                const exBottom = exTop + exHeight;
                 
-                if (Math.abs(proposedLeft - exRight) < SNAP) proposedLeft = exRight;
-                if (Math.abs((proposedLeft + itemPixelWidth) - exLeft) < SNAP) proposedLeft = exLeft - itemPixelWidth;
+                // Horizontal Snap (If next to each other vertically)
+                if (proposedTop < exBottom && proposedTop + itemPixelHeight > exTop) {
+                    if (Math.abs(proposedLeft - exRight) < SNAP) proposedLeft = exRight;
+                    if (Math.abs((proposedLeft + itemPixelWidth) - exLeft) < SNAP) proposedLeft = exLeft - itemPixelWidth;
+                }
+
+                // Vertical Snap (If above/below each other horizontally)
+                if (proposedLeft < exRight && proposedLeft + itemPixelWidth > exLeft) {
+                    if (Math.abs(proposedTop - exBottom) < SNAP) proposedTop = exBottom;
+                    if (Math.abs((proposedTop + itemPixelHeight) - exTop) < SNAP) proposedTop = exTop - itemPixelHeight;
+                }
             });
 
+            // --- COLLISION AUTO-PUSH ---
             let isOverlapping = true;
             let loops = 0;
             while (isOverlapping && loops < 50) { 
                 isOverlapping = false;
                 let proposedRight = proposedLeft + itemPixelWidth;
+                let proposedBottom = proposedTop + itemPixelHeight;
                 
                 existingCols.forEach(col => {
                     const exLeft = parseFloat(col.style.left);
+                    const exTop = parseFloat(col.style.top);
                     const exRight = exLeft + parseFloat(col.style.width);
-                    if (proposedLeft < exRight - 1 && proposedRight > exLeft + 1) {
+                    const exBottom = exTop + parseFloat(col.style.height);
+                    
+                    // If overlapping, push the panel to the right
+                    if (proposedLeft < exRight - 1 && proposedRight > exLeft + 1 && 
+                        proposedTop < exBottom - 1 && proposedBottom > exTop + 1) {
                         isOverlapping = true;
                         proposedLeft = exRight; 
                     }
@@ -419,12 +427,14 @@
                 loops++;
             }
             
+            // Allow hanging off the edges invisibly
             let wallIsFull = false;
-            if (proposedLeft >= wall.clientWidth - 1) {
+            if (proposedLeft >= wall.clientWidth - 1 || proposedTop >= wall.clientHeight - 1) {
                 wallIsFull = true; 
             }
 
-            return { left: proposedLeft, top: 0, width: itemPixelWidth, height: wall.clientHeight, isFull: wallIsFull, mode: 'panel' };
+            // Notice: Top and Height are now exact, NOT stretched to the wall!
+            return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: wallIsFull, mode: 'panel' };
         }
 
         wall.addEventListener('dragover', (e) => {
@@ -473,7 +483,7 @@
             newCol.style.position = 'absolute';
             
             newCol.style.width = (position.width + 1) + 'px'; 
-            newCol.style.height = position.height + 'px';
+            newCol.style.height = (position.height + 1) + 'px'; // +1 closes tiny height gaps too
             newCol.style.left = position.left + 'px';
             newCol.style.top = position.top + 'px';
 
@@ -493,14 +503,11 @@
                 newCol.classList.add('dropped-panel'); 
                 newCol.style.zIndex = '1'; 
                 
-                // Get width in CM using the conversion engine
-                const wallRealWidthCm = getWallDimensionsInCm().w;
-                const pixelsPerCm = wall.clientWidth / wallRealWidthCm; 
-                const itemPixelHeightForRepeat = dragData.realHeight * pixelsPerCm;
-                
                 newCol.style.backgroundImage = `url('${dragData.image}')`;
-                newCol.style.backgroundSize = `100% ${itemPixelHeightForRepeat}px`;
-                newCol.style.backgroundRepeat = 'repeat-y'; 
+                
+                // Set the background to fill the exact size of the panel, not repeat
+                newCol.style.backgroundSize = `100% 100%`;
+                newCol.style.backgroundRepeat = 'no-repeat'; 
             }
 
             const itemName = dragData.name;
