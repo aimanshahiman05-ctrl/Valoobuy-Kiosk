@@ -273,8 +273,7 @@
                     `;
 
                     itemDiv.addEventListener('dragstart', (e) => {
-                        
-                        // 2. Temporarily remove the 30% zoom so the drag ghost looks normal
+                        // 1. Shrink it just for the drag snapshot
                         const img = itemDiv.querySelector('img');
                         img.style.transform = 'scale(1)';
 
@@ -285,20 +284,18 @@
                             realHeight: parseFloat(itemDiv.dataset.realHeight)
                         };
                         e.dataTransfer.setData('text/plain', dragData.name); 
-
-                        // 3. Put the 30% zoom back immediately after the browser takes the snapshot
-                        setTimeout(() => {
-                            img.style.transform = 'scale(1.3)';
-                        }, 50);
+                        
+                        // Notice: We completely removed the glitchy setTimeout here!
                     });
 
                     itemDiv.addEventListener('dragend', () => {
+                        // 2. ALWAYS put the 70% zoom back the moment the drag is finished
+                        const img = itemDiv.querySelector('img');
+                        img.style.transform = 'scale(1.7)';
+
                         if (dragGhost) { dragGhost.remove(); dragGhost = null; }
                         dragData = null;
                     });
-
-                    inventoryDiv.appendChild(itemDiv);
-                });
 
                 uniqueCategories.forEach(category => {
                     const option = document.createElement('option');
