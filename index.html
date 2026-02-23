@@ -63,7 +63,6 @@
         }
         .controls button:hover { background-color: #cc0000; }
         
-        /* NEW: Zoom Controls Styling */
         .zoom-controls {
             display: flex;
             align-items: center;
@@ -131,25 +130,20 @@
         .item p { margin: 10px 0 0 0; font-size: 13px; font-weight: bold; }
         .item small { color: #666; font-size: 11px; }
 
+        /* FIX 1: Allow the canvas area to generate native scrollbars */
         .canvas-area { 
             flex: 1; 
-            display: flex; 
-            /* NEW: Changed to flex-start and auto to allow scrolling when zoomed in */
-            align-items: flex-start; 
-            justify-content: center; 
-            padding: 40px 10px; 
-            width: 100%; 
-            height: 100%; 
             background: #e9ecef; 
             overflow: auto; 
+            display: block; 
         }
         
-        /* NEW: Wrapper to hold the zoom transform smoothly */
+        /* FIX 2: The wrapper grows to force the scrollbars to appear */
         #wall-wrapper {
-            transition: transform 0.2s ease;
-            transform-origin: top center;
+            transition: width 0.2s, height 0.2s;
         }
 
+        /* FIX 3: The wall scales from the top left corner to stay perfectly aligned */
         .wall { 
             background-color: #fff; 
             background-image: linear-gradient(#f0f0f0 1px, transparent 1px), linear-gradient(90deg, #f0f0f0 1px, transparent 1px);
@@ -158,6 +152,8 @@
             position: relative; 
             overflow: hidden; 
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transform-origin: top left;
+            transition: transform 0.2s ease;
         }
 
         .dropped-col { position: absolute; cursor: pointer; user-select: none; }
@@ -242,17 +238,36 @@
         let dragData = null; 
         let dragGhost = null;
 
-        // NEW: ZOOM ENGINE VARIABLES
         let currentZoom = 1.0;
 
+        // FIX 4: The new Zoom & Pan Engine
         function changeZoom(amount) {
             currentZoom += amount;
-            // Limit zoom from 50% to 300%
             if (currentZoom < 0.5) currentZoom = 0.5;
-            if (currentZoom > 3.0) currentZoom = 3.0;
+            if (currentZoom > 3.0) currentZoom = 3.0; // Max 300% Zoom
             
             document.getElementById('zoom-label').innerText = Math.round(currentZoom * 100) + '%';
-            document.getElementById('wall-wrapper').style.transform = `scale(${currentZoom})`;
+            applyZoomTransforms();
+        }
+
+        function applyZoomTransforms() {
+            const wrapper = document.getElementById('wall-wrapper');
+            const container = document.getElementById('canvas-container');
+            
+            // 1. Visually zoom the wall
+            wall.style.transform = `scale(${currentZoom})`;
+            
+            // 2. Mathematically grow the wrapper so the browser creates scrollbars
+            const scaledWidth = wall.clientWidth * currentZoom;
+            const scaledHeight = wall.clientHeight * currentZoom;
+            
+            wrapper.style.width = scaledWidth + 'px';
+            wrapper.style.height = scaledHeight + 'px';
+
+            // 3. Keep it perfectly centered when it's zoomed out, but let it scroll when zoomed in
+            const padX = Math.max(20, (container.clientWidth - scaledWidth) / 2);
+            const padY = Math.max(20, (container.clientHeight - scaledHeight) / 2);
+            wrapper.style.margin = `${padY}px ${padX}px`;
         }
 
         function getWallDimensionsInCm() {
@@ -274,7 +289,6 @@
             const categorySelect = document.getElementById('category-filter');
 
             try {
-                console.log("Fetching fresh data from Google Sheets...");
                 const response = await fetch(GOOGLE_SHEET_API_URL);
                 const items = await response.json();
 
@@ -375,10 +389,10 @@
             
             clearWall(); 
             
-            // Reset zoom to 100% when wall changes
+            // Reset zoom to 100% when wall changes, and apply perfect centering
             currentZoom = 1.0;
             document.getElementById('zoom-label').innerText = '100%';
-            document.getElementById('wall-wrapper').style.transform = `scale(1)`;
+            applyZoomTransforms();
         }
 
         window.addEventListener('resize', updateVisualWall);
@@ -397,7 +411,6 @@
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
-            // NEW: The math instantly adjusts the mouse position for the current zoom!
             let proposedLeft = (clientX - wallRect.left) / currentZoom - (itemPixelWidth / 2);
             let proposedTop = (clientY - wallRect.top) / currentZoom - (itemPixelHeight / 2);
 
@@ -455,7 +468,6 @@
             }
             
             let wallIsFull = false;
-            // Removed strict width lock so you can force panels near edges while zoomed
             if (proposedLeft >= wall.clientWidth || proposedTop >= wall.clientHeight) {
                 wallIsFull = true; 
             }
@@ -535,8 +547,6 @@
                 newCol.style.zIndex = '1'; 
                 
                 newCol.style.backgroundImage = `url('${dragData.image}')`;
-                
-                // Set the background to fill the exact size of the panel
                 newCol.style.backgroundSize = `100% 100%`;
                 newCol.style.backgroundPosition = `center`;
                 newCol.style.backgroundRepeat = 'no-repeat'; 
