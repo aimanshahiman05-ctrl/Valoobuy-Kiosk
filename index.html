@@ -82,7 +82,6 @@
         .zoom-controls button:hover { background: #ddd; }
         .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 40px; text-align: center; }
 
-        /* NEW: Styling for the rotation input box */
         #rotation-input {
             width: 45px !important;
             padding: 4px;
@@ -250,26 +249,23 @@
             document.getElementById('rotation-input').value = 0;
         });
 
-        // Triggered when dragging the slider
         function onSliderRotate() {
             if (!selectedItem) return;
             const rot = document.getElementById('rotation-slider').value;
-            document.getElementById('rotation-input').value = rot; // Update the typed box
+            document.getElementById('rotation-input').value = rot; 
             
             selectedItem.dataset.rotation = rot;
             selectedItem.style.transform = `rotate(${rot}deg)`;
         }
 
-        // Triggered when typing a number directly
         function onInputRotate() {
             if (!selectedItem) return;
             let rot = parseInt(document.getElementById('rotation-input').value) || 0;
             
-            // Keep the math clean if they type 400 degrees or a negative number
             if (rot > 360) rot = rot % 360;
             if (rot < 0) rot = (rot % 360) + 360; 
             
-            document.getElementById('rotation-slider').value = rot; // Sync the slider
+            document.getElementById('rotation-slider').value = rot; 
             
             selectedItem.dataset.rotation = rot;
             selectedItem.style.transform = `rotate(${rot}deg)`;
@@ -349,9 +345,16 @@
                             image: itemDiv.dataset.image,
                             realWidth: parseFloat(itemDiv.dataset.realWidth),
                             realHeight: parseFloat(itemDiv.dataset.realHeight),
-                            rotation: 0 
+                            rotation: 0,
+                            offsetX: 0, // Pulling from menu centers perfectly
+                            offsetY: 0
                         };
                         e.dataTransfer.setData('text/plain', dragData.name); 
+                        
+                        // Hides the double-image glitch from the browser
+                        const emptyImage = new Image();
+                        emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                        if (e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(emptyImage, 0, 0);
                     });
 
                     itemDiv.addEventListener('dragend', () => {
@@ -431,8 +434,9 @@
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
-            let proposedLeft = (clientX - wallRect.left) / currentZoom - (itemPixelWidth / 2);
-            let proposedTop = (clientY - wallRect.top) / currentZoom - (itemPixelHeight / 2);
+            // PERFECT MATH: Factors in exactly where you grabbed the item so it doesn't jump!
+            let proposedLeft = (clientX - wallRect.left) / currentZoom - (itemPixelWidth / 2) - (dragData.offsetX || 0);
+            let proposedTop = (clientY - wallRect.top) / currentZoom - (itemPixelHeight / 2) - (dragData.offsetY || 0);
 
             const mode = dragData.sourceMode || document.getElementById('placement-mode').value;
 
@@ -506,13 +510,13 @@
                 dragGhost.style.pointerEvents = 'none'; 
                 dragGhost.style.zIndex = '1000'; 
                 dragGhost.style.transformOrigin = 'center center'; 
+                dragGhost.style.boxSizing = 'border-box'; // FIX: Keeps sizing strictly accurate
                 
-                // NEW: Show the actual picture inside the placeholder!
                 dragGhost.style.backgroundImage = `url('${dragData.image}')`;
                 dragGhost.style.backgroundSize = '100% 100%';
                 dragGhost.style.backgroundPosition = 'center';
                 dragGhost.style.backgroundRepeat = 'no-repeat';
-                dragGhost.style.opacity = '0.7'; // Make it slightly see-through so you can see the wall grid behind it
+                dragGhost.style.opacity = '0.7'; 
                 
                 wall.appendChild(dragGhost);
             }
@@ -524,15 +528,16 @@
             dragGhost.style.top = position.top + 'px';
             dragGhost.style.left = position.left + 'px';
 
-            // NEW: Instantly spin the placeholder picture to match your slider angle
             dragGhost.style.transform = `rotate(${dragData.rotation || 0}deg)`;
 
-            // I made the borders thicker so they are easy to see around the new picture
+            // FIX: Using outline instead of border so the dimensions stay 100% true
             if (position.isFull) {
-                dragGhost.style.border = '4px dashed #e60000';
-                dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)'; 
+                dragGhost.style.outline = '4px dashed #e60000';
+                dragGhost.style.outlineOffset = '-4px';
+                dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)';
             } else {
-                dragGhost.style.border = '4px dashed #28a745';
+                dragGhost.style.outline = '4px dashed #28a745';
+                dragGhost.style.outlineOffset = '-4px';
                 dragGhost.style.backgroundColor = 'rgba(40, 167, 69, 0.4)';
             }
         });
@@ -567,7 +572,6 @@
                 selectedItem.style.outline = '3px solid var(--highlight)';
                 selectedItem.style.outlineOffset = '-3px';
 
-                // Activate both slider and input box
                 const rotValue = selectedItem.dataset.rotation || 0;
                 document.getElementById('rotation-slider').disabled = false;
                 document.getElementById('rotation-slider').value = rotValue;
@@ -614,6 +618,13 @@
             }
 
             newCol.addEventListener('dragstart', (ev) => {
+                const rect = newCol.getBoundingClientRect();
+                const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
+                const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
+                
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
                 dragData = {
                     name: newCol.dataset.name,
                     image: newCol.dataset.image,
@@ -621,9 +632,17 @@
                     realHeight: parseFloat(newCol.dataset.realHeight),
                     sourceElement: newCol,
                     sourceMode: newCol.dataset.mode,
-                    rotation: parseInt(newCol.dataset.rotation || '0')
+                    rotation: parseInt(newCol.dataset.rotation || '0'),
+                    offsetX: (mouseX - centerX) / currentZoom,
+                    offsetY: (mouseY - centerY) / currentZoom
                 };
                 ev.dataTransfer.setData('text/plain', dragData.name); 
+                
+                // Hide double image glitch
+                const emptyImage = new Image();
+                emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
+
                 setTimeout(() => newCol.classList.add('is-dragging'), 0);
             });
 
