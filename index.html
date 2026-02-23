@@ -374,13 +374,13 @@
             const containerH = canvasContainer.clientHeight;
             
             const isMobile = window.innerWidth <= 768;
-            const buffer = isMobile ? 40 : 150;
+            const buffer = isMobile ? 40 : 50;
 
             let maxW = containerW - buffer;
             let maxH = containerH - buffer;
             
-            if (maxW > 1000) maxW = 1000;
-            if (maxH > 700) maxH = 700;
+            if (maxW > 1800) maxW = 1800;
+            if (maxH > 1200) maxH = 1200;
             
             const scale = Math.min(maxW / realW, maxH / realH);
             
