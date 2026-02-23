@@ -505,6 +505,8 @@
                 dragGhost.style.position = 'absolute';
                 dragGhost.style.pointerEvents = 'none'; 
                 dragGhost.style.zIndex = '1000'; 
+                // NEW: Ensure the ghost spins from its center, just like the real item
+                dragGhost.style.transformOrigin = 'center center'; 
                 wall.appendChild(dragGhost);
             }
 
@@ -514,6 +516,9 @@
             dragGhost.style.height = position.height + 'px';
             dragGhost.style.top = position.top + 'px';
             dragGhost.style.left = position.left + 'px';
+
+            // NEW: Apply the exact same rotation to the placeholder box!
+            dragGhost.style.transform = `rotate(${dragData.rotation || 0}deg)`;
 
             if (position.isFull) {
                 dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)';
