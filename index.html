@@ -487,11 +487,14 @@
                 dragGhost = document.createElement('div');
                 dragGhost.style.position = 'absolute';
                 dragGhost.style.pointerEvents = 'none'; 
+                
+                // NEW FIX: Force the drag placeholder to the very top layer!
+                dragGhost.style.zIndex = '1000'; 
+                
                 wall.appendChild(dragGhost);
             }
 
             const position = calculateDropPosition(e);
-
             dragGhost.style.width = position.width + 'px';
             dragGhost.style.height = position.height + 'px';
             dragGhost.style.top = position.top + 'px';
