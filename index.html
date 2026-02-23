@@ -505,8 +505,15 @@
                 dragGhost.style.position = 'absolute';
                 dragGhost.style.pointerEvents = 'none'; 
                 dragGhost.style.zIndex = '1000'; 
-                // NEW: Ensure the ghost spins from its center, just like the real item
                 dragGhost.style.transformOrigin = 'center center'; 
+                
+                // NEW: Show the actual picture inside the placeholder!
+                dragGhost.style.backgroundImage = `url('${dragData.image}')`;
+                dragGhost.style.backgroundSize = '100% 100%';
+                dragGhost.style.backgroundPosition = 'center';
+                dragGhost.style.backgroundRepeat = 'no-repeat';
+                dragGhost.style.opacity = '0.7'; // Make it slightly see-through so you can see the wall grid behind it
+                
                 wall.appendChild(dragGhost);
             }
 
@@ -517,15 +524,16 @@
             dragGhost.style.top = position.top + 'px';
             dragGhost.style.left = position.left + 'px';
 
-            // NEW: Apply the exact same rotation to the placeholder box!
+            // NEW: Instantly spin the placeholder picture to match your slider angle
             dragGhost.style.transform = `rotate(${dragData.rotation || 0}deg)`;
 
+            // I made the borders thicker so they are easy to see around the new picture
             if (position.isFull) {
-                dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)';
-                dragGhost.style.border = '2px dashed #e60000';
+                dragGhost.style.border = '4px dashed #e60000';
+                dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)'; 
             } else {
+                dragGhost.style.border = '4px dashed #28a745';
                 dragGhost.style.backgroundColor = 'rgba(40, 167, 69, 0.4)';
-                dragGhost.style.border = '2px dashed #28a745';
             }
         });
 
