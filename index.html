@@ -121,7 +121,6 @@
             max-width: 100%;
             height: 100%;
             object-fit: contain;
-            transform: scale(7.0); 
             pointer-events: none;
         }
         .item p { margin: 10px 0 0 0; font-size: 13px; font-weight: bold; }
@@ -325,8 +324,23 @@
                     itemDiv.dataset.realHeight = item.height;
                     itemDiv.dataset.image = item.image;
 
+                    // --- NEW ZOOM LOGIC ---
+                    let zoomLevel = 1.7; // Fallback default if the spreadsheet cell is empty
+                    if (item.zoom) {
+                        let parsedZoom = parseFloat(item.zoom);
+                        // Bulletproof math: if someone types "150" instead of "1.5", it fixes it automatically!
+                        if (parsedZoom > 10) {
+                            zoomLevel = parsedZoom / 100; 
+                        } else {
+                            zoomLevel = parsedZoom;
+                        }
+                    }
+
+                    // Apply the custom zoom directly to this specific image
                     itemDiv.innerHTML = `
-                        <div class="thumb-box"><img src="${item.image}" alt="${item.name}"></div>
+                        <div class="thumb-box">
+                            <img src="${item.image}" alt="${item.name}" style="transform: scale(${zoomLevel});">
+                        </div>
                         <p>${item.name}</p>
                         <small>${item.width}x${item.height}cm</small>
                     `;
