@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Valoobuy Kiosk - Wall Design Customizer</title>
+    <title>Valoobuy Kiosk - Wall Design Visualizer</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
@@ -99,7 +99,7 @@
             max-width: 100%;
             height: 100%;
             object-fit: contain;
-            transform: scale(7.0); 
+            transform: scale(1.7); 
             pointer-events: none;
             transition: transform 0s; 
         }
@@ -130,21 +130,6 @@
         .dropped-col { position: absolute; cursor: pointer; user-select: none; }
         .dropped-col:hover { outline: 2px solid var(--brand-color); outline-offset: -2px; z-index: 50 !important; }
 
-        .bom-panel { 
-            position: absolute; 
-            bottom: 20px; 
-            right: 20px; 
-            background: rgba(255, 255, 255, 0.95); 
-            padding: 15px; 
-            border-top: 4px solid var(--brand-color); 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
-            border-radius: 6px; 
-            min-width: 200px; 
-            z-index: 30;
-        }
-        .bom-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
-        .bom-list li { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-
         @media (max-width: 768px) {
             .workspace { flex-direction: column-reverse; }
             .sidebar {
@@ -163,8 +148,6 @@
                 background: #fff;
             }
             .item { min-width: 120px; margin-bottom: 0; padding: 5px; }
-            .bom-panel { bottom: 160px; right: 10px; padding: 10px; min-width: 150px; }
-            .bom-panel h3 { margin-bottom: 5px; font-size: 14px; }
         }
     </style>
 </head>
@@ -194,22 +177,17 @@
             </select>
         </label>
 
-        <button onclick="clearWall()">Clear</button>
+        <button onclick="clearWall()">Clear Wall</button>
     </div>
 
     <div class="workspace">
         <div class="sidebar" id="inventory">
-            <p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading items...</p>
+            <p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading fresh items...</p>
         </div>
 
         <div class="canvas-area" id="canvas-container">
             <div class="wall" id="wall"></div>
         </div>
-    </div>
-
-    <div class="bom-panel">
-        <h3 style="margin-top:0;">Items Used</h3>
-        <ul class="bom-list" id="bom-list"><li><i>No items added yet.</i></li></ul>
     </div>
 
     <script>
@@ -220,7 +198,6 @@
         
         const wall = document.getElementById('wall');
         const canvasContainer = document.getElementById('canvas-container'); 
-        let itemData = {};
         let dragData = null; 
         let dragGhost = null;
 
@@ -241,9 +218,6 @@
         async function loadInventory() {
             const inventoryDiv = document.getElementById('inventory');
             const categorySelect = document.getElementById('category-filter');
-
-            // Show loading text while waiting for Google Sheets
-            inventoryDiv.innerHTML = '<p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading fresh items...</p>';
 
             try {
                 // ALWAYS fetch live data directly from Google Sheets
@@ -277,7 +251,6 @@
                     `;
 
                     itemDiv.addEventListener('dragstart', (e) => {
-                        // Image stays zoomed in the menu perfectly!
                         dragData = {
                             name: itemDiv.dataset.name,
                             image: itemDiv.dataset.image,
@@ -295,7 +268,6 @@
                     inventoryDiv.appendChild(itemDiv);
                 });
 
-                // Populate the dropdown filter
                 uniqueCategories.forEach(category => {
                     const option = document.createElement('option');
                     option.value = category;
@@ -322,24 +294,8 @@
             });
         }
 
-        function updateBOM() {
-            const bomList = document.getElementById('bom-list');
-            bomList.innerHTML = ''; 
-            let hasItems = false;
-            
-            for (const [name, data] of Object.entries(itemData)) {
-                if (data.count > 0) {
-                    hasItems = true;
-                    bomList.innerHTML += `<li><span>${name}</span> <b>x${data.count}</b></li>`;
-                }
-            }
-            if (!hasItems) bomList.innerHTML = '<li><i>No items added yet.</i></li>';
-        }
-
         function clearWall() {
             wall.innerHTML = ''; 
-            itemData = {}; 
-            updateBOM();         
         }
 
         function updateVisualWall() {
@@ -523,20 +479,12 @@
                 newCol.style.backgroundRepeat = 'no-repeat'; 
             }
 
-            const itemName = dragData.name;
+            // Remove item on double click
             newCol.addEventListener('dblclick', function() {
                 wall.removeChild(this);
-                itemData[itemName].count--;
-                updateBOM();
             });
 
             wall.appendChild(newCol);
-
-            if (!itemData[itemName]) {
-                itemData[itemName] = { count: 0, height: dragData.realHeight, type: position.mode };
-            }
-            itemData[itemName].count++;
-            updateBOM();
         });
 
         window.onload = () => {
