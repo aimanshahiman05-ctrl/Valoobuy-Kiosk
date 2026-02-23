@@ -130,7 +130,6 @@
         .item p { margin: 10px 0 0 0; font-size: 13px; font-weight: bold; }
         .item small { color: #666; font-size: 11px; }
 
-        /* FIX 1: Allow the canvas area to generate native scrollbars */
         .canvas-area { 
             flex: 1; 
             background: #e9ecef; 
@@ -138,12 +137,10 @@
             display: block; 
         }
         
-        /* FIX 2: The wrapper grows to force the scrollbars to appear */
         #wall-wrapper {
             transition: width 0.2s, height 0.2s;
         }
 
-        /* FIX 3: The wall scales from the top left corner to stay perfectly aligned */
         .wall { 
             background-color: #fff; 
             background-image: linear-gradient(#f0f0f0 1px, transparent 1px), linear-gradient(90deg, #f0f0f0 1px, transparent 1px);
@@ -158,6 +155,13 @@
 
         .dropped-col { position: absolute; cursor: pointer; user-select: none; }
         .dropped-col:hover { outline: 2px solid var(--brand-color); outline-offset: -2px; z-index: 50 !important; }
+        
+        /* NEW: Styles the item temporarily while you are dragging it off the wall */
+        .is-dragging {
+            opacity: 0.4;
+            pointer-events: none; 
+            z-index: -1 !important;
+        }
 
         @media (max-width: 768px) {
             .workspace { flex-direction: column-reverse; }
@@ -240,11 +244,10 @@
 
         let currentZoom = 1.0;
 
-        // FIX 4: The new Zoom & Pan Engine
         function changeZoom(amount) {
             currentZoom += amount;
             if (currentZoom < 0.5) currentZoom = 0.5;
-            if (currentZoom > 3.0) currentZoom = 3.0; // Max 300% Zoom
+            if (currentZoom > 3.0) currentZoom = 3.0; 
             
             document.getElementById('zoom-label').innerText = Math.round(currentZoom * 100) + '%';
             applyZoomTransforms();
@@ -254,17 +257,14 @@
             const wrapper = document.getElementById('wall-wrapper');
             const container = document.getElementById('canvas-container');
             
-            // 1. Visually zoom the wall
             wall.style.transform = `scale(${currentZoom})`;
             
-            // 2. Mathematically grow the wrapper so the browser creates scrollbars
             const scaledWidth = wall.clientWidth * currentZoom;
             const scaledHeight = wall.clientHeight * currentZoom;
             
             wrapper.style.width = scaledWidth + 'px';
             wrapper.style.height = scaledHeight + 'px';
 
-            // 3. Keep it perfectly centered when it's zoomed out, but let it scroll when zoomed in
             const padX = Math.max(20, (container.clientWidth - scaledWidth) / 2);
             const padY = Math.max(20, (container.clientHeight - scaledHeight) / 2);
             wrapper.style.margin = `${padY}px ${padX}px`;
@@ -323,6 +323,7 @@
                             image: itemDiv.dataset.image,
                             realWidth: parseFloat(itemDiv.dataset.realWidth),
                             realHeight: parseFloat(itemDiv.dataset.realHeight)
+                            // Note: No sourceElement here because it came from the menu!
                         };
                         e.dataTransfer.setData('text/plain', dragData.name); 
                     });
@@ -379,8 +380,8 @@
             let maxW = containerW - buffer;
             let maxH = containerH - buffer;
             
-            if (maxW > 1800) maxW = 1800;
-            if (maxH > 1200) maxH = 1200;
+            if (maxW > 1800) maxW = 1800; 
+            if (maxH > 1200) maxH = 1200; 
             
             const scale = Math.min(maxW / realW, maxH / realH);
             
@@ -389,7 +390,6 @@
             
             clearWall(); 
             
-            // Reset zoom to 100% when wall changes, and apply perfect centering
             currentZoom = 1.0;
             document.getElementById('zoom-label').innerText = '100%';
             applyZoomTransforms();
@@ -414,7 +414,8 @@
             let proposedLeft = (clientX - wallRect.left) / currentZoom - (itemPixelWidth / 2);
             let proposedTop = (clientY - wallRect.top) / currentZoom - (itemPixelHeight / 2);
 
-            const mode = document.getElementById('placement-mode').value;
+            // NEW: Prioritize the item's original saved mode, otherwise use the dropdown
+            const mode = dragData.sourceMode || document.getElementById('placement-mode').value;
 
             if (mode === 'overlay') {
                 return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: false, mode: 'overlay' };
@@ -425,7 +426,10 @@
             if (proposedLeft < SNAP) proposedLeft = 0;
             if (proposedTop < SNAP) proposedTop = 0;
 
-            const existingCols = wall.querySelectorAll('.dropped-panel'); 
+            // NEW: Filter out the item currently being dragged so it doesn't collide with itself
+            const existingCols = Array.from(wall.querySelectorAll('.dropped-panel'))
+                                      .filter(col => !col.classList.contains('is-dragging'));
+            
             existingCols.forEach(col => {
                 const exLeft = parseFloat(col.dataset.mathLeft);
                 const exTop = parseFloat(col.dataset.mathTop);
@@ -516,9 +520,24 @@
                 return; 
             }
 
+            // NEW: If we are rearranging an item, remove the old one before placing the new one
+            if (dragData.sourceElement) {
+                dragData.sourceElement.remove();
+            }
+
             const newCol = document.createElement('div');
             newCol.classList.add('dropped-col');
             newCol.style.position = 'absolute';
+            
+            // NEW: Make the item on the wall draggable!
+            newCol.draggable = true; 
+
+            // NEW: Save all the original data into the element so we can drag it again later
+            newCol.dataset.name = dragData.name;
+            newCol.dataset.image = dragData.image;
+            newCol.dataset.realWidth = dragData.realWidth;
+            newCol.dataset.realHeight = dragData.realHeight;
+            newCol.dataset.mode = position.mode;
 
             newCol.dataset.mathLeft = position.left;
             newCol.dataset.mathTop = position.top;
@@ -551,6 +570,28 @@
                 newCol.style.backgroundPosition = `center`;
                 newCol.style.backgroundRepeat = 'no-repeat'; 
             }
+
+            // NEW: Attach dragstart/dragend events to the placed wall item
+            newCol.addEventListener('dragstart', (e) => {
+                dragData = {
+                    name: newCol.dataset.name,
+                    image: newCol.dataset.image,
+                    realWidth: parseFloat(newCol.dataset.realWidth),
+                    realHeight: parseFloat(newCol.dataset.realHeight),
+                    sourceElement: newCol,           // Tells the drop target this is an existing item
+                    sourceMode: newCol.dataset.mode  // Remembers if it was an overlay or panel
+                };
+                e.dataTransfer.setData('text/plain', dragData.name); 
+                
+                // Makes the old item fade out while you are dragging it
+                setTimeout(() => newCol.classList.add('is-dragging'), 0);
+            });
+
+            newCol.addEventListener('dragend', () => {
+                newCol.classList.remove('is-dragging');
+                if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+                dragData = null;
+            });
 
             newCol.addEventListener('dblclick', function() {
                 wall.removeChild(this);
