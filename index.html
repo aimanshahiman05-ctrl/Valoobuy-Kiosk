@@ -12,7 +12,7 @@
         :root {
             --brand-color: #e60000; 
             --bg-color: #f4f4f9;
-            --highlight: #007bff; /* Blue for selected items */
+            --highlight: #007bff;
         }
 
         body { 
@@ -144,7 +144,6 @@
 
         .dropped-col { position: absolute; cursor: pointer; user-select: none; }
         
-        /* NEW: Ensures the image inside the panel scales properly when rotated */
         .inner-bg {
             transition: transform 0.2s;
         }
@@ -223,16 +222,13 @@
         let dragGhost = null;
         let currentZoom = 1.0;
 
-        // NEW: Memory for the currently clicked item
         let selectedItem = null;
 
-        // NEW: Click background to deselect item
         canvasContainer.addEventListener('click', () => {
             if (selectedItem) selectedItem.style.outline = 'none';
             selectedItem = null;
         });
 
-        // NEW: Rotate logic
         function rotateSelectedItem() {
             if (!selectedItem) {
                 alert('Please tap an item on the wall to select it first!');
@@ -240,26 +236,22 @@
             }
 
             let rot = parseInt(selectedItem.dataset.rotation || '0');
-            rot = (rot + 90) % 360; // Add 90 degrees
+            rot = (rot + 90) % 360; 
             selectedItem.dataset.rotation = rot;
 
-            // 1. Swap the internal Collision Math Dimensions!
             const oldMathW = parseFloat(selectedItem.dataset.mathWidth);
             const oldMathH = parseFloat(selectedItem.dataset.mathHeight);
             selectedItem.dataset.mathWidth = oldMathH;
             selectedItem.dataset.mathHeight = oldMathW;
 
-            // 2. Swap the Real-World dimensions (so it drags accurately next time!)
             const oldRealW = selectedItem.dataset.realWidth;
             const oldRealH = selectedItem.dataset.realHeight;
             selectedItem.dataset.realWidth = oldRealH;
             selectedItem.dataset.realHeight = oldRealW;
 
-            // 3. Update the physical container box shape
             selectedItem.style.width = (oldMathH + 1) + 'px';
             selectedItem.style.height = (oldMathW + 1) + 'px';
 
-            // 4. Spin the inner texture so the wood grain/marble turns sideways
             const inner = selectedItem.querySelector('.inner-bg');
             if (rot === 90 || rot === 270) {
                 inner.style.width = (oldMathW + 1) + 'px';
@@ -345,7 +337,7 @@
                             image: itemDiv.dataset.image,
                             realWidth: parseFloat(itemDiv.dataset.realWidth),
                             realHeight: parseFloat(itemDiv.dataset.realHeight),
-                            rotation: 0 // New items start at 0 degrees
+                            rotation: 0 
                         };
                         e.dataTransfer.setData('text/plain', dragData.name); 
                     });
@@ -539,9 +531,8 @@
             newCol.style.position = 'absolute';
             newCol.draggable = true; 
 
-            // NEW: Select Item Logic!
             newCol.addEventListener('click', (ev) => {
-                ev.stopPropagation(); // Stops the click from passing to the wall
+                ev.stopPropagation(); 
                 if (selectedItem) selectedItem.style.outline = 'none';
                 selectedItem = newCol;
                 selectedItem.style.outline = '3px solid var(--highlight)';
@@ -565,16 +556,14 @@
             newCol.style.left = position.left + 'px';
             newCol.style.top = position.top + 'px';
 
-            // NEW: The texture is held in an inner div so it rotates correctly
             const innerBg = document.createElement('div');
             innerBg.className = 'inner-bg';
             innerBg.style.backgroundImage = `url('${dragData.image}')`;
             innerBg.style.backgroundSize = `100% 100%`;
             innerBg.style.backgroundRepeat = 'no-repeat';
             innerBg.style.backgroundPosition = `center`;
-            innerBg.style.pointerEvents = 'none'; // Lets clicks pass through to selection logic
+            innerBg.style.pointerEvents = 'none'; 
 
-            // Apply remembered rotation if dragging an already-rotated item
             const dropRot = parseInt(newCol.dataset.rotation);
             if (dropRot === 90 || dropRot === 270) {
                 innerBg.style.width = (position.height + 1) + 'px';
@@ -594,10 +583,7 @@
                 newCol.classList.add('dropped-overlay'); 
                 newCol.style.zIndex = '10'; 
                 newCol.style.boxShadow = '2px 2px 15px rgba(0,0,0,0.5)'; 
-                newCol.style.resize = 'both';
                 newCol.style.overflow = 'hidden';
-                newCol.style.borderBottom = '4px solid var(--brand-color)'; 
-                newCol.style.borderRight = '4px solid var(--brand-color)';  
             } else {
                 newCol.classList.add('dropped-panel'); 
                 newCol.style.zIndex = '1'; 
