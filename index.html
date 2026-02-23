@@ -38,14 +38,14 @@
             justify-content: center; 
         }
         .controls label { font-weight: bold; font-size: 13px; }
-        .controls input, .controls select { 
+        .controls input[type="number"], .controls select { 
             padding: 6px; 
             border: 1px solid #ccc; 
             border-radius: 4px; 
             margin-left: 5px;
             font-size: 13px; 
         }
-        .controls input { width: 50px; }
+        .controls input[type="number"] { width: 50px; }
         
         #placement-mode {
             background-color: #fff3f3;
@@ -63,9 +63,6 @@
             font-weight: bold;
         }
         .controls button:hover { background-color: #cc0000; }
-        
-        .btn-blue { background-color: var(--highlight) !important; }
-        .btn-blue:hover { background-color: #0056b3 !important; }
 
         .zoom-controls {
             display: flex;
@@ -83,7 +80,7 @@
             font-size: 16px;
         }
         .zoom-controls button:hover { background: #ddd; }
-        .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 45px; text-align: center; }
+        .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 40px; text-align: center; }
 
         .workspace { display: flex; flex: 1; overflow: hidden; }
         
@@ -141,10 +138,16 @@
             transition: transform 0.2s ease;
         }
 
-        .dropped-col { position: absolute; cursor: pointer; user-select: none; }
+        .dropped-col { 
+            position: absolute; 
+            cursor: pointer; 
+            user-select: none; 
+            transform-origin: center center;
+        }
         
         .inner-bg {
-            transition: transform 0.2s;
+            width: 100%;
+            height: 100%;
         }
 
         .is-dragging { opacity: 0.4; pointer-events: none; z-index: -1 !important; }
@@ -180,7 +183,11 @@
             </select>
         </label>
 
-        <button onclick="rotateSelectedItem()" class="btn-blue" style="margin-left: 10px;">↻ Rotate</button>
+        <div class="zoom-controls">
+            <span style="font-size: 13px;">Spin:</span>
+            <input type="range" id="rotation-slider" min="0" max="360" value="0" disabled oninput="onSliderRotate()" style="width: 80px; margin-left: 5px;">
+            <span id="rotation-val" style="font-size: 13px; min-width: 35px;">0°</span>
+        </div>
 
         <div class="zoom-controls">
             <button onclick="changeZoom(-0.2)">➖</button>
@@ -226,46 +233,20 @@
         canvasContainer.addEventListener('click', () => {
             if (selectedItem) selectedItem.style.outline = 'none';
             selectedItem = null;
+            
+            const slider = document.getElementById('rotation-slider');
+            slider.disabled = true;
+            slider.value = 0;
+            document.getElementById('rotation-val').innerText = '0°';
         });
 
-        function rotateSelectedItem() {
-            if (!selectedItem) {
-                alert('Please tap an item on the wall to select it first!');
-                return;
-            }
-
-            let rot = parseInt(selectedItem.dataset.rotation || '0');
-            rot = (rot + 90) % 360; 
+        function onSliderRotate() {
+            if (!selectedItem) return;
+            const rot = document.getElementById('rotation-slider').value;
+            document.getElementById('rotation-val').innerText = rot + '°';
+            
             selectedItem.dataset.rotation = rot;
-
-            const oldMathW = parseFloat(selectedItem.dataset.mathWidth);
-            const oldMathH = parseFloat(selectedItem.dataset.mathHeight);
-            selectedItem.dataset.mathWidth = oldMathH;
-            selectedItem.dataset.mathHeight = oldMathW;
-
-            const oldRealW = selectedItem.dataset.realWidth;
-            const oldRealH = selectedItem.dataset.realHeight;
-            selectedItem.dataset.realWidth = oldRealH;
-            selectedItem.dataset.realHeight = oldRealW;
-
-            selectedItem.style.width = (oldMathH + 1) + 'px';
-            selectedItem.style.height = (oldMathW + 1) + 'px';
-
-            const inner = selectedItem.querySelector('.inner-bg');
-            if (rot === 90 || rot === 270) {
-                inner.style.width = (oldMathW + 1) + 'px';
-                inner.style.height = (oldMathH + 1) + 'px';
-                inner.style.position = 'absolute';
-                inner.style.top = '50%';
-                inner.style.left = '50%';
-                inner.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
-            } else {
-                inner.style.width = '100%';
-                inner.style.height = '100%';
-                inner.style.top = '0';
-                inner.style.left = '0';
-                inner.style.transform = `translate(0, 0) rotate(${rot}deg)`;
-            }
+            selectedItem.style.transform = `rotate(${rot}deg)`;
         }
 
         function changeZoom(amount) {
@@ -324,23 +305,15 @@
                     itemDiv.dataset.realHeight = item.height;
                     itemDiv.dataset.image = item.image;
 
-                    // --- NEW ZOOM LOGIC ---
-                    let zoomLevel = 1.7; // Fallback default if the spreadsheet cell is empty
+                    let zoomLevel = 1.7; 
                     if (item.zoom) {
                         let parsedZoom = parseFloat(item.zoom);
-                        // Bulletproof math: if someone types "150" instead of "1.5", it fixes it automatically!
-                        if (parsedZoom > 10) {
-                            zoomLevel = parsedZoom / 100; 
-                        } else {
-                            zoomLevel = parsedZoom;
-                        }
+                        zoomLevel = parsedZoom > 10 ? parsedZoom / 100 : parsedZoom;
                     }
 
-                    // Apply the custom zoom directly to this specific image
+                    // loading="lazy" has been removed below!
                     itemDiv.innerHTML = `
-                        <div class="thumb-box">
-                            <img src="${item.image}" alt="${item.name}" style="transform: scale(${zoomLevel});">
-                        </div>
+                        <div class="thumb-box"><img src="${item.image}" alt="${item.name}" style="transform: scale(${zoomLevel});"></div>
                         <p>${item.name}</p>
                         <small>${item.width}x${item.height}cm</small>
                     `;
@@ -387,6 +360,8 @@
         function clearWall() {
             wall.innerHTML = ''; 
             selectedItem = null;
+            document.getElementById('rotation-slider').disabled = true;
+            document.getElementById('rotation-val').innerText = '0°';
         }
 
         function updateVisualWall() {
@@ -551,6 +526,11 @@
                 selectedItem = newCol;
                 selectedItem.style.outline = '3px solid var(--highlight)';
                 selectedItem.style.outlineOffset = '-3px';
+
+                const slider = document.getElementById('rotation-slider');
+                slider.disabled = false;
+                slider.value = selectedItem.dataset.rotation || 0;
+                document.getElementById('rotation-val').innerText = slider.value + '°';
             });
 
             newCol.dataset.name = dragData.name;
@@ -558,7 +538,10 @@
             newCol.dataset.realWidth = dragData.realWidth;
             newCol.dataset.realHeight = dragData.realHeight;
             newCol.dataset.mode = position.mode;
-            newCol.dataset.rotation = dragData.rotation || 0;
+            
+            const dropRot = parseInt(dragData.rotation || '0');
+            newCol.dataset.rotation = dropRot;
+            newCol.style.transform = `rotate(${dropRot}deg)`;
 
             newCol.dataset.mathLeft = position.left;
             newCol.dataset.mathTop = position.top;
@@ -577,25 +560,11 @@
             innerBg.style.backgroundRepeat = 'no-repeat';
             innerBg.style.backgroundPosition = `center`;
             innerBg.style.pointerEvents = 'none'; 
-
-            const dropRot = parseInt(newCol.dataset.rotation);
-            if (dropRot === 90 || dropRot === 270) {
-                innerBg.style.width = (position.height + 1) + 'px';
-                innerBg.style.height = (position.width + 1) + 'px';
-                innerBg.style.position = 'absolute';
-                innerBg.style.top = '50%';
-                innerBg.style.left = '50%';
-                innerBg.style.transform = `translate(-50%, -50%) rotate(${dropRot}deg)`;
-            } else {
-                innerBg.style.width = '100%';
-                innerBg.style.height = '100%';
-                innerBg.style.transform = `rotate(${dropRot}deg)`;
-            }
             newCol.appendChild(innerBg);
 
             if (position.mode === 'overlay') {
                 newCol.classList.add('dropped-overlay'); 
-                newCol.style.zIndex = '10';
+                newCol.style.zIndex = '10'; 
                 newCol.style.overflow = 'hidden';
             } else {
                 newCol.classList.add('dropped-panel'); 
@@ -623,7 +592,11 @@
             });
 
             newCol.addEventListener('dblclick', function() {
-                if (selectedItem === this) selectedItem = null;
+                if (selectedItem === this) {
+                    selectedItem = null;
+                    document.getElementById('rotation-slider').disabled = true;
+                    document.getElementById('rotation-val').innerText = '0°';
+                }
                 wall.removeChild(this);
             });
 
