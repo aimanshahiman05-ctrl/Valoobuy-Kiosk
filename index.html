@@ -82,6 +82,15 @@
         .zoom-controls button:hover { background: #ddd; }
         .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 40px; text-align: center; }
 
+        /* NEW: Styling for the rotation input box */
+        #rotation-input {
+            width: 45px !important;
+            padding: 4px;
+            text-align: center;
+            margin-left: 5px;
+            margin-right: 2px;
+        }
+
         .workspace { display: flex; flex: 1; overflow: hidden; }
         
         .sidebar { 
@@ -186,7 +195,8 @@
         <div class="zoom-controls">
             <span style="font-size: 13px;">Spin:</span>
             <input type="range" id="rotation-slider" min="0" max="360" value="0" disabled oninput="onSliderRotate()" style="width: 80px; margin-left: 5px;">
-            <span id="rotation-val" style="font-size: 13px; min-width: 35px;">0°</span>
+            <input type="number" id="rotation-input" min="-360" max="360" value="0" disabled oninput="onInputRotate()">
+            <span style="font-size: 13px; min-width: auto; margin-left: 0;">°</span>
         </div>
 
         <div class="zoom-controls">
@@ -234,16 +244,32 @@
             if (selectedItem) selectedItem.style.outline = 'none';
             selectedItem = null;
             
-            const slider = document.getElementById('rotation-slider');
-            slider.disabled = true;
-            slider.value = 0;
-            document.getElementById('rotation-val').innerText = '0°';
+            document.getElementById('rotation-slider').disabled = true;
+            document.getElementById('rotation-slider').value = 0;
+            document.getElementById('rotation-input').disabled = true;
+            document.getElementById('rotation-input').value = 0;
         });
 
+        // Triggered when dragging the slider
         function onSliderRotate() {
             if (!selectedItem) return;
             const rot = document.getElementById('rotation-slider').value;
-            document.getElementById('rotation-val').innerText = rot + '°';
+            document.getElementById('rotation-input').value = rot; // Update the typed box
+            
+            selectedItem.dataset.rotation = rot;
+            selectedItem.style.transform = `rotate(${rot}deg)`;
+        }
+
+        // Triggered when typing a number directly
+        function onInputRotate() {
+            if (!selectedItem) return;
+            let rot = parseInt(document.getElementById('rotation-input').value) || 0;
+            
+            // Keep the math clean if they type 400 degrees or a negative number
+            if (rot > 360) rot = rot % 360;
+            if (rot < 0) rot = (rot % 360) + 360; 
+            
+            document.getElementById('rotation-slider').value = rot; // Sync the slider
             
             selectedItem.dataset.rotation = rot;
             selectedItem.style.transform = `rotate(${rot}deg)`;
@@ -311,7 +337,6 @@
                         zoomLevel = parsedZoom > 10 ? parsedZoom / 100 : parsedZoom;
                     }
 
-                    // loading="lazy" has been removed below!
                     itemDiv.innerHTML = `
                         <div class="thumb-box"><img src="${item.image}" alt="${item.name}" style="transform: scale(${zoomLevel});"></div>
                         <p>${item.name}</p>
@@ -361,7 +386,9 @@
             wall.innerHTML = ''; 
             selectedItem = null;
             document.getElementById('rotation-slider').disabled = true;
-            document.getElementById('rotation-val').innerText = '0°';
+            document.getElementById('rotation-slider').value = 0;
+            document.getElementById('rotation-input').disabled = true;
+            document.getElementById('rotation-input').value = 0;
         }
 
         function updateVisualWall() {
@@ -527,10 +554,12 @@
                 selectedItem.style.outline = '3px solid var(--highlight)';
                 selectedItem.style.outlineOffset = '-3px';
 
-                const slider = document.getElementById('rotation-slider');
-                slider.disabled = false;
-                slider.value = selectedItem.dataset.rotation || 0;
-                document.getElementById('rotation-val').innerText = slider.value + '°';
+                // Activate both slider and input box
+                const rotValue = selectedItem.dataset.rotation || 0;
+                document.getElementById('rotation-slider').disabled = false;
+                document.getElementById('rotation-slider').value = rotValue;
+                document.getElementById('rotation-input').disabled = false;
+                document.getElementById('rotation-input').value = rotValue;
             });
 
             newCol.dataset.name = dragData.name;
@@ -595,7 +624,9 @@
                 if (selectedItem === this) {
                     selectedItem = null;
                     document.getElementById('rotation-slider').disabled = true;
-                    document.getElementById('rotation-val').innerText = '0°';
+                    document.getElementById('rotation-slider').value = 0;
+                    document.getElementById('rotation-input').disabled = true;
+                    document.getElementById('rotation-input').value = 0;
                 }
                 wall.removeChild(this);
             });
