@@ -12,6 +12,7 @@
         :root {
             --brand-color: #e60000; 
             --bg-color: #f4f4f9;
+            --highlight: #007bff; /* Blue for selected items */
         }
 
         body { 
@@ -63,6 +64,9 @@
         }
         .controls button:hover { background-color: #cc0000; }
         
+        .btn-blue { background-color: var(--highlight) !important; }
+        .btn-blue:hover { background-color: #0056b3 !important; }
+
         .zoom-controls {
             display: flex;
             align-items: center;
@@ -79,13 +83,7 @@
             font-size: 16px;
         }
         .zoom-controls button:hover { background: #ddd; }
-        .zoom-controls span {
-            margin: 0 10px;
-            font-weight: bold;
-            font-size: 14px;
-            min-width: 45px;
-            text-align: center;
-        }
+        .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 45px; text-align: center; }
 
         .workspace { display: flex; flex: 1; overflow: hidden; }
         
@@ -125,21 +123,12 @@
             object-fit: contain;
             transform: scale(7.0); 
             pointer-events: none;
-            transition: transform 0s; 
         }
         .item p { margin: 10px 0 0 0; font-size: 13px; font-weight: bold; }
         .item small { color: #666; font-size: 11px; }
 
-        .canvas-area { 
-            flex: 1; 
-            background: #e9ecef; 
-            overflow: auto; 
-            display: block; 
-        }
-        
-        #wall-wrapper {
-            transition: width 0.2s, height 0.2s;
-        }
+        .canvas-area { flex: 1; background: #e9ecef; overflow: auto; display: block; }
+        #wall-wrapper { transition: width 0.2s, height 0.2s; }
 
         .wall { 
             background-color: #fff; 
@@ -154,31 +143,20 @@
         }
 
         .dropped-col { position: absolute; cursor: pointer; user-select: none; }
-        .dropped-col:hover { outline: 2px solid var(--brand-color); outline-offset: -2px; z-index: 50 !important; }
         
-        /* NEW: Styles the item temporarily while you are dragging it off the wall */
-        .is-dragging {
-            opacity: 0.4;
-            pointer-events: none; 
-            z-index: -1 !important;
+        /* NEW: Ensures the image inside the panel scales properly when rotated */
+        .inner-bg {
+            transition: transform 0.2s;
         }
+
+        .is-dragging { opacity: 0.4; pointer-events: none; z-index: -1 !important; }
 
         @media (max-width: 768px) {
             .workspace { flex-direction: column-reverse; }
             .sidebar {
-                width: 100%;
-                min-width: 100%;
-                height: 140px; 
-                border-right: none;
-                border-top: 2px solid #ddd;
-                display: flex;
-                flex-direction: row;
-                overflow-x: auto;
-                overflow-y: hidden;
-                padding: 10px;
-                box-sizing: border-box;
-                gap: 15px;
-                background: #fff;
+                width: 100%; min-width: 100%; height: 140px; border-right: none;
+                border-top: 2px solid #ddd; display: flex; flex-direction: row;
+                overflow-x: auto; overflow-y: hidden; padding: 10px; box-sizing: border-box; gap: 15px;
             }
             .item { min-width: 120px; margin-bottom: 0; padding: 5px; }
         }
@@ -203,6 +181,8 @@
                 <option value="overlay">Decor (Free Move)</option>
             </select>
         </label>
+
+        <button onclick="rotateSelectedItem()" class="btn-blue" style="margin-left: 10px;">↻ Rotate</button>
 
         <div class="zoom-controls">
             <button onclick="changeZoom(-0.2)">➖</button>
@@ -241,32 +221,79 @@
         const canvasContainer = document.getElementById('canvas-container'); 
         let dragData = null; 
         let dragGhost = null;
-
         let currentZoom = 1.0;
+
+        // NEW: Memory for the currently clicked item
+        let selectedItem = null;
+
+        // NEW: Click background to deselect item
+        canvasContainer.addEventListener('click', () => {
+            if (selectedItem) selectedItem.style.outline = 'none';
+            selectedItem = null;
+        });
+
+        // NEW: Rotate logic
+        function rotateSelectedItem() {
+            if (!selectedItem) {
+                alert('Please tap an item on the wall to select it first!');
+                return;
+            }
+
+            let rot = parseInt(selectedItem.dataset.rotation || '0');
+            rot = (rot + 90) % 360; // Add 90 degrees
+            selectedItem.dataset.rotation = rot;
+
+            // 1. Swap the internal Collision Math Dimensions!
+            const oldMathW = parseFloat(selectedItem.dataset.mathWidth);
+            const oldMathH = parseFloat(selectedItem.dataset.mathHeight);
+            selectedItem.dataset.mathWidth = oldMathH;
+            selectedItem.dataset.mathHeight = oldMathW;
+
+            // 2. Swap the Real-World dimensions (so it drags accurately next time!)
+            const oldRealW = selectedItem.dataset.realWidth;
+            const oldRealH = selectedItem.dataset.realHeight;
+            selectedItem.dataset.realWidth = oldRealH;
+            selectedItem.dataset.realHeight = oldRealW;
+
+            // 3. Update the physical container box shape
+            selectedItem.style.width = (oldMathH + 1) + 'px';
+            selectedItem.style.height = (oldMathW + 1) + 'px';
+
+            // 4. Spin the inner texture so the wood grain/marble turns sideways
+            const inner = selectedItem.querySelector('.inner-bg');
+            if (rot === 90 || rot === 270) {
+                inner.style.width = (oldMathW + 1) + 'px';
+                inner.style.height = (oldMathH + 1) + 'px';
+                inner.style.position = 'absolute';
+                inner.style.top = '50%';
+                inner.style.left = '50%';
+                inner.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+            } else {
+                inner.style.width = '100%';
+                inner.style.height = '100%';
+                inner.style.top = '0';
+                inner.style.left = '0';
+                inner.style.transform = `translate(0, 0) rotate(${rot}deg)`;
+            }
+        }
 
         function changeZoom(amount) {
             currentZoom += amount;
             if (currentZoom < 0.5) currentZoom = 0.5;
             if (currentZoom > 3.0) currentZoom = 3.0; 
-            
             document.getElementById('zoom-label').innerText = Math.round(currentZoom * 100) + '%';
             applyZoomTransforms();
         }
 
         function applyZoomTransforms() {
             const wrapper = document.getElementById('wall-wrapper');
-            const container = document.getElementById('canvas-container');
-            
             wall.style.transform = `scale(${currentZoom})`;
-            
             const scaledWidth = wall.clientWidth * currentZoom;
             const scaledHeight = wall.clientHeight * currentZoom;
-            
             wrapper.style.width = scaledWidth + 'px';
             wrapper.style.height = scaledHeight + 'px';
-
-            const padX = Math.max(20, (container.clientWidth - scaledWidth) / 2);
-            const padY = Math.max(20, (container.clientHeight - scaledHeight) / 2);
+            const padX = Math.max(20, (canvasContainer.clientWidth - scaledWidth) / 2);
+            const padY = Math.max(20, (canvasContainer.clientHeight - scaledHeight) / 2);
             wrapper.style.margin = `${padY}px ${padX}px`;
         }
 
@@ -274,13 +301,11 @@
             const rawW = parseFloat(document.getElementById('real-width').value) || 300;
             const rawH = parseFloat(document.getElementById('real-height').value) || 250;
             const unit = document.getElementById('unit-selector').value;
-            
             let factor = 1; 
             if (unit === 'mm') factor = 0.1;
             if (unit === 'inch') factor = 2.54;
             if (unit === 'ft') factor = 30.48;
             if (unit === 'm') factor = 100;
-
             return { w: rawW * factor, h: rawH * factor };
         }
 
@@ -302,7 +327,6 @@
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'item';
                     itemDiv.draggable = true;
-                    
                     itemDiv.dataset.category = item.category || 'Uncategorized';
                     itemDiv.dataset.name = item.name;
                     itemDiv.dataset.realWidth = item.width;
@@ -310,9 +334,7 @@
                     itemDiv.dataset.image = item.image;
 
                     itemDiv.innerHTML = `
-                        <div class="thumb-box">
-                            <img src="${item.image}" alt="${item.name}">
-                        </div>
+                        <div class="thumb-box"><img src="${item.image}" alt="${item.name}"></div>
                         <p>${item.name}</p>
                         <small>${item.width}x${item.height}cm</small>
                     `;
@@ -322,8 +344,8 @@
                             name: itemDiv.dataset.name,
                             image: itemDiv.dataset.image,
                             realWidth: parseFloat(itemDiv.dataset.realWidth),
-                            realHeight: parseFloat(itemDiv.dataset.realHeight)
-                            // Note: No sourceElement here because it came from the menu!
+                            realHeight: parseFloat(itemDiv.dataset.realHeight),
+                            rotation: 0 // New items start at 0 degrees
                         };
                         e.dataTransfer.setData('text/plain', dragData.name); 
                     });
@@ -344,26 +366,21 @@
                 });
 
             } catch (error) {
-                console.error('Error loading inventory:', error);
-                inventoryDiv.innerHTML = `<p style="color: red; text-align: center;">Error loading items. Please check your internet connection.</p>`;
+                inventoryDiv.innerHTML = `<p style="color: red; text-align: center;">Error loading items.</p>`;
             }
         }
 
         function filterItems() {
             const selectedCategory = document.getElementById('category-filter').value;
             const allItems = document.querySelectorAll('.sidebar .item');
-
             allItems.forEach(item => {
-                if (selectedCategory === 'all' || item.dataset.category === selectedCategory) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
+                item.style.display = (selectedCategory === 'all' || item.dataset.category === selectedCategory) ? 'block' : 'none';
             });
         }
 
         function clearWall() {
             wall.innerHTML = ''; 
+            selectedItem = null;
         }
 
         function updateVisualWall() {
@@ -371,14 +388,11 @@
             const realW = dims.w;
             const realH = dims.h;
             
-            const containerW = canvasContainer.clientWidth;
-            const containerH = canvasContainer.clientHeight;
-            
             const isMobile = window.innerWidth <= 768;
             const buffer = isMobile ? 40 : 50;
 
-            let maxW = containerW - buffer;
-            let maxH = containerH - buffer;
+            let maxW = canvasContainer.clientWidth - buffer;
+            let maxH = canvasContainer.clientHeight - buffer;
             
             if (maxW > 1800) maxW = 1800; 
             if (maxH > 1200) maxH = 1200; 
@@ -389,7 +403,6 @@
             wall.style.height = (realH * scale) + 'px';
             
             clearWall(); 
-            
             currentZoom = 1.0;
             document.getElementById('zoom-label').innerText = '100%';
             applyZoomTransforms();
@@ -407,14 +420,12 @@
             const itemPixelHeight = dragData.realHeight * pixelsPerCm;
             
             const wallRect = wall.getBoundingClientRect();
-            
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
             let proposedLeft = (clientX - wallRect.left) / currentZoom - (itemPixelWidth / 2);
             let proposedTop = (clientY - wallRect.top) / currentZoom - (itemPixelHeight / 2);
 
-            // NEW: Prioritize the item's original saved mode, otherwise use the dropdown
             const mode = dragData.sourceMode || document.getElementById('placement-mode').value;
 
             if (mode === 'overlay') {
@@ -422,11 +433,9 @@
             }
 
             const SNAP = 20;
-            
             if (proposedLeft < SNAP) proposedLeft = 0;
             if (proposedTop < SNAP) proposedTop = 0;
 
-            // NEW: Filter out the item currently being dragged so it doesn't collide with itself
             const existingCols = Array.from(wall.querySelectorAll('.dropped-panel'))
                                       .filter(col => !col.classList.contains('is-dragging'));
             
@@ -487,14 +496,12 @@
                 dragGhost = document.createElement('div');
                 dragGhost.style.position = 'absolute';
                 dragGhost.style.pointerEvents = 'none'; 
-                
-                // NEW FIX: Force the drag placeholder to the very top layer!
                 dragGhost.style.zIndex = '1000'; 
-                
                 wall.appendChild(dragGhost);
             }
 
             const position = calculateDropPosition(e);
+
             dragGhost.style.width = position.width + 'px';
             dragGhost.style.height = position.height + 'px';
             dragGhost.style.top = position.top + 'px';
@@ -516,31 +523,37 @@
             if (!dragData) return;
 
             const position = calculateDropPosition(e);
-            
             if (position.isFull) {
                 wall.style.backgroundColor = '#ffe6e6';
                 setTimeout(() => wall.style.backgroundColor = '#fff', 200);
                 return; 
             }
 
-            // NEW: If we are rearranging an item, remove the old one before placing the new one
             if (dragData.sourceElement) {
+                if (dragData.sourceElement === selectedItem) selectedItem = null;
                 dragData.sourceElement.remove();
             }
 
             const newCol = document.createElement('div');
             newCol.classList.add('dropped-col');
             newCol.style.position = 'absolute';
-            
-            // NEW: Make the item on the wall draggable!
             newCol.draggable = true; 
 
-            // NEW: Save all the original data into the element so we can drag it again later
+            // NEW: Select Item Logic!
+            newCol.addEventListener('click', (ev) => {
+                ev.stopPropagation(); // Stops the click from passing to the wall
+                if (selectedItem) selectedItem.style.outline = 'none';
+                selectedItem = newCol;
+                selectedItem.style.outline = '3px solid var(--highlight)';
+                selectedItem.style.outlineOffset = '-3px';
+            });
+
             newCol.dataset.name = dragData.name;
             newCol.dataset.image = dragData.image;
             newCol.dataset.realWidth = dragData.realWidth;
             newCol.dataset.realHeight = dragData.realHeight;
             newCol.dataset.mode = position.mode;
+            newCol.dataset.rotation = dragData.rotation || 0;
 
             newCol.dataset.mathLeft = position.left;
             newCol.dataset.mathTop = position.top;
@@ -552,14 +565,35 @@
             newCol.style.left = position.left + 'px';
             newCol.style.top = position.top + 'px';
 
+            // NEW: The texture is held in an inner div so it rotates correctly
+            const innerBg = document.createElement('div');
+            innerBg.className = 'inner-bg';
+            innerBg.style.backgroundImage = `url('${dragData.image}')`;
+            innerBg.style.backgroundSize = `100% 100%`;
+            innerBg.style.backgroundRepeat = 'no-repeat';
+            innerBg.style.backgroundPosition = `center`;
+            innerBg.style.pointerEvents = 'none'; // Lets clicks pass through to selection logic
+
+            // Apply remembered rotation if dragging an already-rotated item
+            const dropRot = parseInt(newCol.dataset.rotation);
+            if (dropRot === 90 || dropRot === 270) {
+                innerBg.style.width = (position.height + 1) + 'px';
+                innerBg.style.height = (position.width + 1) + 'px';
+                innerBg.style.position = 'absolute';
+                innerBg.style.top = '50%';
+                innerBg.style.left = '50%';
+                innerBg.style.transform = `translate(-50%, -50%) rotate(${dropRot}deg)`;
+            } else {
+                innerBg.style.width = '100%';
+                innerBg.style.height = '100%';
+                innerBg.style.transform = `rotate(${dropRot}deg)`;
+            }
+            newCol.appendChild(innerBg);
+
             if (position.mode === 'overlay') {
                 newCol.classList.add('dropped-overlay'); 
                 newCol.style.zIndex = '10'; 
-                newCol.style.backgroundImage = `url('${dragData.image}')`;
-                newCol.style.backgroundSize = `100% 100%`;
-                newCol.style.backgroundRepeat = 'no-repeat';
                 newCol.style.boxShadow = '2px 2px 15px rgba(0,0,0,0.5)'; 
-                
                 newCol.style.resize = 'both';
                 newCol.style.overflow = 'hidden';
                 newCol.style.borderBottom = '4px solid var(--brand-color)'; 
@@ -567,26 +601,19 @@
             } else {
                 newCol.classList.add('dropped-panel'); 
                 newCol.style.zIndex = '1'; 
-                
-                newCol.style.backgroundImage = `url('${dragData.image}')`;
-                newCol.style.backgroundSize = `100% 100%`;
-                newCol.style.backgroundPosition = `center`;
-                newCol.style.backgroundRepeat = 'no-repeat'; 
             }
 
-            // NEW: Attach dragstart/dragend events to the placed wall item
-            newCol.addEventListener('dragstart', (e) => {
+            newCol.addEventListener('dragstart', (ev) => {
                 dragData = {
                     name: newCol.dataset.name,
                     image: newCol.dataset.image,
                     realWidth: parseFloat(newCol.dataset.realWidth),
                     realHeight: parseFloat(newCol.dataset.realHeight),
-                    sourceElement: newCol,           // Tells the drop target this is an existing item
-                    sourceMode: newCol.dataset.mode  // Remembers if it was an overlay or panel
+                    sourceElement: newCol,
+                    sourceMode: newCol.dataset.mode,
+                    rotation: parseInt(newCol.dataset.rotation || '0')
                 };
-                e.dataTransfer.setData('text/plain', dragData.name); 
-                
-                // Makes the old item fade out while you are dragging it
+                ev.dataTransfer.setData('text/plain', dragData.name); 
                 setTimeout(() => newCol.classList.add('is-dragging'), 0);
             });
 
@@ -597,6 +624,7 @@
             });
 
             newCol.addEventListener('dblclick', function() {
+                if (selectedItem === this) selectedItem = null;
                 wall.removeChild(this);
             });
 
