@@ -177,21 +177,31 @@
                 overflow-x: auto;
                 justify-content: flex-start;
                 padding: 10px;
-                scrollbar-width: none; /* Hide scrollbar Firefox */
+                scrollbar-width: none; 
             }
-            .controls::-webkit-scrollbar { display: none; } /* Hide scrollbar WebKit */
+            .controls::-webkit-scrollbar { display: none; } 
             
             .controls label, .controls button, .controls .zoom-controls {
-                flex-shrink: 0; /* Prevents items from squishing on small screens */
+                flex-shrink: 0; 
             }
 
             .workspace { flex-direction: column-reverse; }
+            
+            /* NEW: Fixed sidebar scrolling */
             .sidebar {
                 width: 100%; min-width: 100%; height: 140px; border-right: none;
                 border-top: 2px solid #ddd; display: flex; flex-direction: row;
                 overflow-x: auto; overflow-y: hidden; padding: 10px; box-sizing: border-box; gap: 15px;
+                -webkit-overflow-scrolling: touch; /* Forces smooth scrolling on mobile */
             }
-            .item { min-width: 120px; margin-bottom: 0; padding: 5px; }
+            
+            .item { 
+                min-width: 120px; 
+                margin-bottom: 0; 
+                padding: 5px; 
+                flex-shrink: 0; /* Prevents items from squishing and breaking the scroll */
+                touch-action: pan-x; /* Explicitly allows horizontal swiping */
+            }
         }
     </style>
 </head>
