@@ -402,12 +402,7 @@
                             offsetY: 0
                         };
                         e.dataTransfer.setData('text/plain', dragData.name); 
-                        
-                        const emptyImage = new Image();
-                        emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                        if (e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(emptyImage, 0, 0);
                     });
-
                     itemDiv.addEventListener('dragend', () => {
                         if (dragGhost) { dragGhost.remove(); dragGhost = null; }
                         dragData = null;
