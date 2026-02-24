@@ -20,7 +20,8 @@
             margin: 0; 
             display: flex; 
             flex-direction: column; 
-            height: 100vh; 
+            height: 100vh; /* Fallback for old browsers */
+            height: 100dvh; /* FIX: Perfect fit on mobile browsers with address bars */
             background-color: var(--bg-color); 
             overflow: hidden; 
             overscroll-behavior-y: none; 
@@ -47,7 +48,6 @@
         }
         .controls input[type="number"] { width: 50px; }
         
-        /* NEW: Make the color picker look neat */
         .controls input[type="color"] {
             margin-left: 5px;
             border: 1px solid #ccc;
@@ -147,9 +147,8 @@
 
         .wall { 
             background-color: #ffffff; 
-            /* FIX: Changed grid lines to 5% black so they adapt to ANY wall color! */
-            background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
-            background-size: 20px 20px; 
+            background-image: linear-gradient(rgba(0,0,0,0.05) 2px, transparent 2px), linear-gradient(90deg, rgba(0,0,0,0.05) 2px, transparent 2px);
+            background-size: 100px 100px; /* Represents a 10cm x 10cm physical grid */
             border: 2px solid #333; 
             position: relative; 
             overflow: hidden; 
@@ -172,7 +171,21 @@
 
         .is-dragging { opacity: 0.4; pointer-events: none; z-index: -1 !important; }
 
+        /* FIX: Mobile Responsiveness Improvements */
         @media (max-width: 768px) {
+            .controls {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                justify-content: flex-start;
+                padding: 10px;
+                scrollbar-width: none; /* Hide scrollbar Firefox */
+            }
+            .controls::-webkit-scrollbar { display: none; } /* Hide scrollbar WebKit */
+            
+            .controls label, .controls button, .controls .zoom-controls {
+                flex-shrink: 0; /* Prevents items from squishing on small screens */
+            }
+
             .workspace { flex-direction: column-reverse; }
             .sidebar {
                 width: 100%; min-width: 100%; height: 140px; border-right: none;
@@ -186,9 +199,9 @@
 <body>
 
     <div class="controls">
-        <label>Width: <input type="number" id="real-width" value="300" onchange="updateVisualWall()"></label>
-        <label>Height: <input type="number" id="real-height" value="250" onchange="updateVisualWall()"></label>
-        <select id="unit-selector" onchange="updateVisualWall()">
+        <label>W: <input type="number" id="real-width" value="300" onchange="updateVisualWall(true)"></label>
+        <label>H: <input type="number" id="real-height" value="250" onchange="updateVisualWall(true)"></label>
+        <select id="unit-selector" onchange="updateVisualWall(true)">
             <option value="cm">cm</option>
             <option value="mm">mm</option>
             <option value="inch">inch</option>
@@ -251,7 +264,11 @@
         const canvasContainer = document.getElementById('canvas-container'); 
         let dragData = null; 
         let dragGhost = null;
+        
+        // NEW: Advanced Scaling Variables
         let currentZoom = 1.0;
+        let baseScale = 1.0;
+        const PIXELS_PER_CM = 10; // High fidelity internal mathematical grid
 
         let selectedItem = null;
 
@@ -265,7 +282,6 @@
             document.getElementById('rotation-input').value = 0;
         });
 
-        // NEW: Function to instantly apply paint color to the wall
         function changeWallColor() {
             const chosenColor = document.getElementById('wall-color').value;
             wall.style.backgroundColor = chosenColor;
@@ -303,11 +319,16 @@
 
         function applyZoomTransforms() {
             const wrapper = document.getElementById('wall-wrapper');
-            wall.style.transform = `scale(${currentZoom})`;
-            const scaledWidth = wall.clientWidth * currentZoom;
-            const scaledHeight = wall.clientHeight * currentZoom;
+            const totalScale = baseScale * currentZoom;
+            
+            wall.style.transform = `scale(${totalScale})`;
+            
+            const scaledWidth = wall.offsetWidth * totalScale;
+            const scaledHeight = wall.offsetHeight * totalScale;
+            
             wrapper.style.width = scaledWidth + 'px';
             wrapper.style.height = scaledHeight + 'px';
+            
             const padX = Math.max(20, (canvasContainer.clientWidth - scaledWidth) / 2);
             const padY = Math.max(20, (canvasContainer.clientHeight - scaledHeight) / 2);
             wrapper.style.margin = `${padY}px ${padX}px`;
@@ -415,10 +436,15 @@
             document.getElementById('rotation-input').value = 0;
         }
 
-        function updateVisualWall() {
+        // NEW: Improved Wall Updater. Hard Reset is only True when physical dimensions change!
+        function updateVisualWall(hardReset = false) {
             const dims = getWallDimensionsInCm();
-            const realW = dims.w;
-            const realH = dims.h;
+            const internalW = dims.w * PIXELS_PER_CM;
+            const internalH = dims.h * PIXELS_PER_CM;
+            
+            // Set the absolute internal pixel scale
+            wall.style.width = internalW + 'px';
+            wall.style.height = internalH + 'px';
             
             const isMobile = window.innerWidth <= 768;
             const buffer = isMobile ? 40 : 50;
@@ -426,37 +452,34 @@
             let maxW = canvasContainer.clientWidth - buffer;
             let maxH = canvasContainer.clientHeight - buffer;
             
-            if (maxW > 1800) maxW = 1800; 
-            if (maxH > 1200) maxH = 1200; 
+            // Re-calculate the visual base scale
+            baseScale = Math.min(maxW / internalW, maxH / internalH);
             
-            const scale = Math.min(maxW / realW, maxH / realH);
+            if (hardReset) {
+                clearWall(); 
+                currentZoom = 1.0;
+                document.getElementById('zoom-label').innerText = '100%';
+            }
             
-            wall.style.width = (realW * scale) + 'px';
-            wall.style.height = (realH * scale) + 'px';
-            
-            clearWall(); 
-            currentZoom = 1.0;
-            document.getElementById('zoom-label').innerText = '100%';
             applyZoomTransforms();
         }
 
-        window.addEventListener('resize', updateVisualWall);
+        // Resizing window dynamically recalculates bounds WITHOUT clearing the wall!
+        window.addEventListener('resize', () => updateVisualWall(false));
 
         function calculateDropPosition(e) {
             if (!dragData) return { left: 0, top: 0, isFull: true, width: 0, height: 0, mode: 'panel' };
             
-            const wallRealWidthCm = getWallDimensionsInCm().w;
-            const pixelsPerCm = wall.clientWidth / wallRealWidthCm; 
-            
-            const itemPixelWidth = dragData.realWidth * pixelsPerCm;
-            const itemPixelHeight = dragData.realHeight * pixelsPerCm;
+            const totalScale = baseScale * currentZoom;
+            const itemPixelWidth = dragData.realWidth * PIXELS_PER_CM;
+            const itemPixelHeight = dragData.realHeight * PIXELS_PER_CM;
             
             const wallRect = wall.getBoundingClientRect();
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
-            let proposedLeft = (clientX - wallRect.left) / currentZoom - (itemPixelWidth / 2) - (dragData.offsetX || 0);
-            let proposedTop = (clientY - wallRect.top) / currentZoom - (itemPixelHeight / 2) - (dragData.offsetY || 0);
+            let proposedLeft = (clientX - wallRect.left) / totalScale - (itemPixelWidth / 2) - (dragData.offsetX || 0);
+            let proposedTop = (clientY - wallRect.top) / totalScale - (itemPixelHeight / 2) - (dragData.offsetY || 0);
 
             const mode = dragData.sourceMode || document.getElementById('placement-mode').value;
 
@@ -503,8 +526,8 @@
                     const exRight = exLeft + parseFloat(col.dataset.mathWidth);
                     const exBottom = exTop + parseFloat(col.dataset.mathHeight);
                     
-                    if (proposedLeft < exRight - 1 && proposedRight > exLeft + 1 && 
-                        proposedTop < exBottom - 1 && proposedBottom > exTop + 1) {
+                    if (proposedLeft < exRight - 2 && proposedRight > exLeft + 2 && 
+                        proposedTop < exBottom - 2 && proposedBottom > exTop + 2) {
                         isOverlapping = true;
                         proposedLeft = exRight; 
                     }
@@ -513,12 +536,15 @@
             }
             
             let wallIsFull = false;
-            if (proposedLeft >= wall.clientWidth || proposedTop >= wall.clientHeight) {
+            if (proposedLeft >= internalW() || proposedTop >= internalH()) {
                 wallIsFull = true; 
             }
 
             return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: wallIsFull, mode: 'panel' };
         }
+        
+        function internalW() { return parseFloat(wall.style.width); }
+        function internalH() { return parseFloat(wall.style.height); }
 
         wall.addEventListener('dragover', (e) => {
             e.preventDefault(); 
@@ -569,7 +595,6 @@
 
             const position = calculateDropPosition(e);
             if (position.isFull) {
-                // Modified drop flash so it doesn't break their custom color!
                 const currentColor = wall.style.backgroundColor;
                 wall.style.backgroundColor = '#ffe6e6';
                 setTimeout(() => wall.style.backgroundColor = currentColor, 200);
@@ -646,6 +671,8 @@
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
 
+                const totalScale = baseScale * currentZoom;
+
                 dragData = {
                     name: newCol.dataset.name,
                     image: newCol.dataset.image,
@@ -654,8 +681,8 @@
                     sourceElement: newCol,
                     sourceMode: newCol.dataset.mode,
                     rotation: parseInt(newCol.dataset.rotation || '0'),
-                    offsetX: (mouseX - centerX) / currentZoom,
-                    offsetY: (mouseY - centerY) / currentZoom
+                    offsetX: (mouseX - centerX) / totalScale,
+                    offsetY: (mouseY - centerY) / totalScale
                 };
                 ev.dataTransfer.setData('text/plain', dragData.name); 
                 
@@ -688,7 +715,7 @@
 
         window.onload = () => {
             loadInventory();
-            setTimeout(updateVisualWall, 100);
+            setTimeout(() => updateVisualWall(true), 100);
         };
 
     </script>
