@@ -485,6 +485,43 @@
                 if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
 
                 setTimeout(() => newCol.classList.add('is-dragging'), 0);
+
+                // NEW: Instantly spawn the floating ghost BEFORE the finger even moves!
+                if (!dragGhost) {
+                    dragGhost = document.createElement('div');
+                    dragGhost.style.position = 'absolute';
+                    dragGhost.style.pointerEvents = 'none'; 
+                    dragGhost.style.zIndex = '1000'; 
+                    dragGhost.style.transformOrigin = 'center center'; 
+                    dragGhost.style.boxSizing = 'border-box'; 
+                    
+                    // Hardware acceleration for absolute smoothness
+                    dragGhost.style.willChange = 'transform, width, height';
+                    dragGhost.style.top = '0px'; 
+                    dragGhost.style.left = '0px'; 
+                    
+                    dragGhost.style.backgroundImage = `url('${dragData.image}')`;
+                    dragGhost.style.backgroundSize = '100% 100%';
+                    dragGhost.style.backgroundPosition = 'center';
+                    dragGhost.style.backgroundRepeat = 'no-repeat';
+                    dragGhost.style.opacity = '0.7'; 
+                    
+                    wall.appendChild(dragGhost);
+
+                    // Force it directly under the finger's starting coordinates
+                    const position = calculateDropPosition({ clientX: mouseX, clientY: mouseY });
+                    dragGhost.style.width = position.width + 'px';
+                    dragGhost.style.height = position.height + 'px';
+                    dragGhost.style.transform = `translate3d(${position.left}px, ${position.top}px, 0) rotate(${dragData.rotation || 0}deg)`;
+
+                    if (position.isFull) {
+                        dragGhost.style.outline = '2px dashed #e60000';
+                        dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)';
+                    } else {
+                        dragGhost.style.outline = '2px dashed #28a745';
+                        dragGhost.style.backgroundColor = 'rgba(40, 167, 69, 0.4)';
+                    }
+                }
             });
 
             newCol.addEventListener('dragend', () => {
