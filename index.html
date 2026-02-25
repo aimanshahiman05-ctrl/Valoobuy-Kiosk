@@ -165,11 +165,8 @@
         .dropped-col { 
             position: absolute; 
             cursor: pointer; 
-            transform-origin: center center;
-            touch-action: none;
             user-select: none; 
-            -webkit-user-select: none; 
-            -webkit-touch-callout: none;
+            transform-origin: center center;
         }
         
         .inner-bg {
@@ -271,7 +268,7 @@
     </div>
 
     <script>
-        MobileDragDrop.polyfill({ holdToDrag: 50, forceApply: true });
+        MobileDragDrop.polyfill({ holdToDrag: 0 });
         window.addEventListener('touchmove', function() {}, {passive: false});
 
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
@@ -344,7 +341,6 @@
                 }
             }
             
-            // Capture the newly created item
             const newClone = spawnItemOnWall({
                 name: selectedItem.dataset.name,
                 image: selectedItem.dataset.image,
@@ -358,7 +354,6 @@
                 height: itemH
             });
 
-            // INSTANTLY select the new clone so you can just tap "Clone" repeatedly!
             setTimeout(() => {
                 if (newClone) newClone.click();
             }, 10);
@@ -438,6 +433,8 @@
             newCol.style.height = (data.height + 1) + 'px'; 
             newCol.style.left = data.left + 'px';
             newCol.style.top = data.top + 'px';
+
+            // NEW FIX: Apply the rotation!
             newCol.style.transform = `rotate(${data.rotation || 0}deg)`;
 
             const innerBg = document.createElement('div');
@@ -507,7 +504,6 @@
 
             wall.appendChild(newCol);
             
-            // Return the newly created element so the cloner can select it!
             return newCol;
         }
 
