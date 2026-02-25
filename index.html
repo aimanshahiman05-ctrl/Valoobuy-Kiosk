@@ -75,7 +75,6 @@
         }
         .controls button:hover { background-color: #cc0000; }
         
-        /* NEW: Gray out disabled buttons so they look unclickable */
         .controls button:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
@@ -124,7 +123,7 @@
             margin-bottom: 15px; 
             padding: 10px; 
             text-align: center; 
-            cursor: pointer; /* Changed to pointer since it's tap-to-spawn now */
+            cursor: pointer; 
             border-radius: 6px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             transition: transform 0.2s;
@@ -293,8 +292,6 @@
             document.getElementById('rotation-slider').value = 0;
             document.getElementById('rotation-input').disabled = true;
             document.getElementById('rotation-input').value = 0;
-            
-            // Disable clone button when clicking blank wall
             document.getElementById('duplicate-btn').disabled = true; 
         });
 
@@ -325,30 +322,27 @@
             selectedItem.style.transform = `rotate(${rot}deg)`;
         }
 
-        // NEW: Clone the selected item
         function duplicateSelectedItem() {
             if (!selectedItem) return;
 
             const itemW = parseFloat(selectedItem.dataset.mathWidth);
             const itemH = parseFloat(selectedItem.dataset.mathHeight);
 
-            // 1. Try to spawn it perfectly flush to the RIGHT side
             let spawnLeft = parseFloat(selectedItem.dataset.mathLeft) + itemW;
             let spawnTop = parseFloat(selectedItem.dataset.mathTop);
 
-            // 2. If it goes off the right edge of the wall, spawn it directly BELOW instead!
             if (spawnLeft + itemW > internalW()) {
                 spawnLeft = parseFloat(selectedItem.dataset.mathLeft);
                 spawnTop = parseFloat(selectedItem.dataset.mathTop) + itemH;
                 
-                // 3. If it ALSO goes off the bottom edge, just nudge it slightly so it doesn't disappear
                 if (spawnTop + itemH > internalH()) {
                     spawnLeft = parseFloat(selectedItem.dataset.mathLeft) + 20;
                     spawnTop = parseFloat(selectedItem.dataset.mathTop) + 20;
                 }
             }
             
-            spawnItemOnWall({
+            // Capture the newly created item
+            const newClone = spawnItemOnWall({
                 name: selectedItem.dataset.name,
                 image: selectedItem.dataset.image,
                 realWidth: parseFloat(selectedItem.dataset.realWidth),
@@ -360,6 +354,11 @@
                 width: itemW,
                 height: itemH
             });
+
+            // INSTANTLY select the new clone so you can just tap "Clone" repeatedly!
+            setTimeout(() => {
+                if (newClone) newClone.click();
+            }, 10);
         }
 
         function changeZoom(amount) {
@@ -417,8 +416,6 @@
                 document.getElementById('rotation-slider').value = rotValue;
                 document.getElementById('rotation-input').disabled = false;
                 document.getElementById('rotation-input').value = rotValue;
-                
-                // Enable clone button when an item is selected!
                 document.getElementById('duplicate-btn').disabled = false; 
             });
 
@@ -499,13 +496,15 @@
                     document.getElementById('rotation-slider').value = 0;
                     document.getElementById('rotation-input').disabled = true;
                     document.getElementById('rotation-input').value = 0;
-                    
                     document.getElementById('duplicate-btn').disabled = true;
                 }
                 wall.removeChild(this);
             });
 
             wall.appendChild(newCol);
+            
+            // Return the newly created element so the cloner can select it!
+            return newCol;
         }
 
         async function loadInventory() {
@@ -602,7 +601,6 @@
             document.getElementById('rotation-slider').value = 0;
             document.getElementById('rotation-input').disabled = true;
             document.getElementById('rotation-input').value = 0;
-            
             document.getElementById('duplicate-btn').disabled = true;
         }
 
