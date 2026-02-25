@@ -168,7 +168,6 @@
             user-select: none; 
             transform-origin: center center;
             touch-action: none;
-            user-select: none; 
             -webkit-user-select: none; 
             -webkit-touch-callout: none;
         }
@@ -273,6 +272,7 @@
 
     <script>
         MobileDragDrop.polyfill({ holdToDrag: 50, forceApply: true });
+        window.addEventListener('touchmove', function() {}, {passive: false});
 
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
         
