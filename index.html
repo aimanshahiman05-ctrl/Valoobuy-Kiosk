@@ -435,6 +435,7 @@
             newCol.style.height = (data.height + 1) + 'px'; 
             newCol.style.left = data.left + 'px';
             newCol.style.top = data.top + 'px';
+            newCol.style.transform = `rotate(${data.rotation || 0}deg)`;
 
             const innerBg = document.createElement('div');
             innerBg.className = 'inner-bg';
