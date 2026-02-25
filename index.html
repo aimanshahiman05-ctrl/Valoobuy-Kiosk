@@ -440,6 +440,10 @@
                 activeDragItem.setPointerCapture(ev.pointerId);
             });
 
+            newCol.addEventListener('click', (ev) => {
+                ev.stopPropagation(); 
+            });
+
             // NEW: True Instant Follow (Pointer Move = Slide item)
             newCol.addEventListener('pointermove', (ev) => {
                 if (activeDragItem !== newCol) return;
