@@ -329,17 +329,24 @@
         function duplicateSelectedItem() {
             if (!selectedItem) return;
 
-            // Offset the new item by 20 pixels so it doesn't spawn invisibly exactly underneath
-            const offset = 20; 
-            let spawnLeft = parseFloat(selectedItem.dataset.mathLeft) + offset;
-            let spawnTop = parseFloat(selectedItem.dataset.mathTop) + offset;
-            
             const itemW = parseFloat(selectedItem.dataset.mathWidth);
             const itemH = parseFloat(selectedItem.dataset.mathHeight);
 
-            // Keep the clone from spawning completely off the edge of the wall
-            if (spawnLeft + itemW > internalW()) spawnLeft = internalW() - itemW;
-            if (spawnTop + itemH > internalH()) spawnTop = internalH() - itemH;
+            // 1. Try to spawn it perfectly flush to the RIGHT side
+            let spawnLeft = parseFloat(selectedItem.dataset.mathLeft) + itemW;
+            let spawnTop = parseFloat(selectedItem.dataset.mathTop);
+
+            // 2. If it goes off the right edge of the wall, spawn it directly BELOW instead!
+            if (spawnLeft + itemW > internalW()) {
+                spawnLeft = parseFloat(selectedItem.dataset.mathLeft);
+                spawnTop = parseFloat(selectedItem.dataset.mathTop) + itemH;
+                
+                // 3. If it ALSO goes off the bottom edge, just nudge it slightly so it doesn't disappear
+                if (spawnTop + itemH > internalH()) {
+                    spawnLeft = parseFloat(selectedItem.dataset.mathLeft) + 20;
+                    spawnTop = parseFloat(selectedItem.dataset.mathTop) + 20;
+                }
+            }
             
             spawnItemOnWall({
                 name: selectedItem.dataset.name,
