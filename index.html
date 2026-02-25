@@ -20,8 +20,8 @@
             margin: 0; 
             display: flex; 
             flex-direction: column; 
-            height: 100vh; /* Fallback for old browsers */
-            height: 100dvh; /* FIX: Perfect fit on mobile browsers with address bars */
+            height: 100vh; 
+            height: 100dvh; 
             background-color: var(--bg-color); 
             overflow: hidden; 
             overscroll-behavior-y: none; 
@@ -74,6 +74,13 @@
             font-weight: bold;
         }
         .controls button:hover { background-color: #cc0000; }
+        
+        /* NEW: Gray out disabled buttons so they look unclickable */
+        .controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            color: #666666;
+        }
 
         .zoom-controls {
             display: flex;
@@ -90,7 +97,7 @@
             padding: 4px 10px;
             font-size: 16px;
         }
-        .zoom-controls button:hover { background: #ddd; }
+        .zoom-controls button:hover:not(:disabled) { background: #ddd; }
         .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 40px; text-align: center; }
 
         #rotation-input {
@@ -117,12 +124,12 @@
             margin-bottom: 15px; 
             padding: 10px; 
             text-align: center; 
-            cursor: grab; 
+            cursor: pointer; /* Changed to pointer since it's tap-to-spawn now */
             border-radius: 6px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: transform 0.2s; 
+            transition: transform 0.2s;
         }
-        .item:active { cursor: grabbing; transform: scale(0.98); }
+        .item:active { transform: scale(0.98); }
         .thumb-box {
             height: 70px;
             width: 100%;
@@ -147,7 +154,7 @@
         .wall { 
             background-color: #ffffff; 
             background-image: linear-gradient(rgba(0,0,0,0.05) 2px, transparent 2px), linear-gradient(90deg, rgba(0,0,0,0.05) 2px, transparent 2px);
-            background-size: 100px 100px; /* Represents a 10cm x 10cm physical grid */
+            background-size: 100px 100px; 
             border: 2px solid #333; 
             position: relative; 
             overflow: hidden; 
@@ -170,7 +177,6 @@
 
         .is-dragging { opacity: 0.4; pointer-events: none; z-index: -1 !important; }
 
-        /* FIX: Mobile Responsiveness Improvements */
         @media (max-width: 768px) {
             .controls {
                 flex-wrap: nowrap;
@@ -186,21 +192,18 @@
             }
 
             .workspace { flex-direction: column-reverse; }
-            
-            /* NEW: Fixed sidebar scrolling */
             .sidebar {
                 width: 100%; min-width: 100%; height: 140px; border-right: none;
                 border-top: 2px solid #ddd; display: flex; flex-direction: row;
                 overflow-x: auto; overflow-y: hidden; padding: 10px; box-sizing: border-box; gap: 15px;
-                -webkit-overflow-scrolling: touch; /* Forces smooth scrolling on mobile */
+                -webkit-overflow-scrolling: touch; 
             }
-            
             .item { 
                 min-width: 120px; 
                 margin-bottom: 0; 
                 padding: 5px; 
-                flex-shrink: 0; /* Prevents items from squishing and breaking the scroll */
-                touch-action: pan-x; /* Explicitly allows horizontal swiping */
+                flex-shrink: 0; 
+                touch-action: pan-x; 
             }
         }
     </style>
@@ -234,6 +237,8 @@
             <input type="range" id="rotation-slider" min="0" max="360" value="0" disabled oninput="onSliderRotate()" style="width: 80px; margin-left: 5px;">
             <input type="number" id="rotation-input" min="-360" max="360" value="0" disabled oninput="onInputRotate()">
             <span style="font-size: 13px; min-width: auto; margin-left: 0;">°</span>
+            
+            <button id="duplicate-btn" onclick="duplicateSelectedItem()" disabled style="margin-left: 15px; background-color: #28a745;">Clone</button>
         </div>
 
         <div class="zoom-controls">
@@ -288,6 +293,9 @@
             document.getElementById('rotation-slider').value = 0;
             document.getElementById('rotation-input').disabled = true;
             document.getElementById('rotation-input').value = 0;
+            
+            // Disable clone button when clicking blank wall
+            document.getElementById('duplicate-btn').disabled = true; 
         });
 
         function changeWallColor() {
@@ -315,6 +323,36 @@
             
             selectedItem.dataset.rotation = rot;
             selectedItem.style.transform = `rotate(${rot}deg)`;
+        }
+
+        // NEW: Clone the selected item
+        function duplicateSelectedItem() {
+            if (!selectedItem) return;
+
+            // Offset the new item by 20 pixels so it doesn't spawn invisibly exactly underneath
+            const offset = 20; 
+            let spawnLeft = parseFloat(selectedItem.dataset.mathLeft) + offset;
+            let spawnTop = parseFloat(selectedItem.dataset.mathTop) + offset;
+            
+            const itemW = parseFloat(selectedItem.dataset.mathWidth);
+            const itemH = parseFloat(selectedItem.dataset.mathHeight);
+
+            // Keep the clone from spawning completely off the edge of the wall
+            if (spawnLeft + itemW > internalW()) spawnLeft = internalW() - itemW;
+            if (spawnTop + itemH > internalH()) spawnTop = internalH() - itemH;
+            
+            spawnItemOnWall({
+                name: selectedItem.dataset.name,
+                image: selectedItem.dataset.image,
+                realWidth: parseFloat(selectedItem.dataset.realWidth),
+                realHeight: parseFloat(selectedItem.dataset.realHeight),
+                mode: selectedItem.dataset.mode,
+                rotation: parseInt(selectedItem.dataset.rotation || '0'),
+                left: Math.max(0, spawnLeft),
+                top: Math.max(0, spawnTop),
+                width: itemW,
+                height: itemH
+            });
         }
 
         function changeZoom(amount) {
@@ -372,6 +410,9 @@
                 document.getElementById('rotation-slider').value = rotValue;
                 document.getElementById('rotation-input').disabled = false;
                 document.getElementById('rotation-input').value = rotValue;
+                
+                // Enable clone button when an item is selected!
+                document.getElementById('duplicate-btn').disabled = false; 
             });
 
             newCol.dataset.name = data.name;
@@ -451,6 +492,8 @@
                     document.getElementById('rotation-slider').value = 0;
                     document.getElementById('rotation-input').disabled = true;
                     document.getElementById('rotation-input').value = 0;
+                    
+                    document.getElementById('duplicate-btn').disabled = true;
                 }
                 wall.removeChild(this);
             });
@@ -552,6 +595,8 @@
             document.getElementById('rotation-slider').value = 0;
             document.getElementById('rotation-input').disabled = true;
             document.getElementById('rotation-input').value = 0;
+            
+            document.getElementById('duplicate-btn').disabled = true;
         }
 
         function updateVisualWall(hardReset = false) {
@@ -701,7 +746,6 @@
             }
         });
 
-        // REFACTORED: Now uses spawnItemOnWall instead of duplicate code!
         wall.addEventListener('drop', (e) => {
             e.preventDefault();
             
