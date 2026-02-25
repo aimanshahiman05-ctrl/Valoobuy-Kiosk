@@ -264,7 +264,7 @@
     </div>
 
     <script>
-        MobileDragDrop.polyfill({ holdToDrag: 100 });
+        MobileDragDrop.polyfill({ holdToDrag: 0 });
         window.addEventListener('touchmove', function() {}, {passive: false});
 
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
@@ -274,10 +274,9 @@
         let dragData = null; 
         let dragGhost = null;
         
-        // NEW: Advanced Scaling Variables
         let currentZoom = 1.0;
         let baseScale = 1.0;
-        const PIXELS_PER_CM = 10; // High fidelity internal mathematical grid
+        const PIXELS_PER_CM = 10; 
 
         let selectedItem = null;
 
@@ -355,6 +354,110 @@
             return { w: rawW * factor, h: rawH * factor };
         }
 
+        function spawnItemOnWall(data) {
+            const newCol = document.createElement('div');
+            newCol.classList.add('dropped-col');
+            newCol.style.position = 'absolute';
+            newCol.draggable = true; 
+
+            newCol.addEventListener('click', (ev) => {
+                ev.stopPropagation(); 
+                if (selectedItem) selectedItem.style.outline = 'none';
+                selectedItem = newCol;
+                selectedItem.style.outline = '3px solid var(--highlight)';
+                selectedItem.style.outlineOffset = '-3px';
+
+                const rotValue = selectedItem.dataset.rotation || 0;
+                document.getElementById('rotation-slider').disabled = false;
+                document.getElementById('rotation-slider').value = rotValue;
+                document.getElementById('rotation-input').disabled = false;
+                document.getElementById('rotation-input').value = rotValue;
+            });
+
+            newCol.dataset.name = data.name;
+            newCol.dataset.image = data.image;
+            newCol.dataset.realWidth = data.realWidth;
+            newCol.dataset.realHeight = data.realHeight;
+            newCol.dataset.mode = data.mode;
+            newCol.dataset.rotation = data.rotation;
+
+            newCol.dataset.mathLeft = data.left;
+            newCol.dataset.mathTop = data.top;
+            newCol.dataset.mathWidth = data.width;
+            newCol.dataset.mathHeight = data.height;
+            
+            newCol.style.width = (data.width + 1) + 'px'; 
+            newCol.style.height = (data.height + 1) + 'px'; 
+            newCol.style.left = data.left + 'px';
+            newCol.style.top = data.top + 'px';
+
+            const innerBg = document.createElement('div');
+            innerBg.className = 'inner-bg';
+            innerBg.style.backgroundImage = `url('${data.image}')`;
+            innerBg.style.backgroundSize = `100% 100%`;
+            innerBg.style.backgroundRepeat = 'no-repeat';
+            innerBg.style.backgroundPosition = `center`;
+            innerBg.style.pointerEvents = 'none'; 
+            newCol.appendChild(innerBg);
+
+            if (data.mode === 'overlay') {
+                newCol.classList.add('dropped-overlay'); 
+                newCol.style.zIndex = '10'; 
+                newCol.style.overflow = 'hidden';
+            } else {
+                newCol.classList.add('dropped-panel'); 
+                newCol.style.zIndex = '1'; 
+            }
+
+            newCol.addEventListener('dragstart', (ev) => {
+                const rect = newCol.getBoundingClientRect();
+                const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
+                const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
+                
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const totalScale = baseScale * currentZoom;
+
+                dragData = {
+                    name: newCol.dataset.name,
+                    image: newCol.dataset.image,
+                    realWidth: parseFloat(newCol.dataset.realWidth),
+                    realHeight: parseFloat(newCol.dataset.realHeight),
+                    sourceElement: newCol,
+                    sourceMode: newCol.dataset.mode,
+                    rotation: parseInt(newCol.dataset.rotation || '0'),
+                    offsetX: (mouseX - centerX) / totalScale,
+                    offsetY: (mouseY - centerY) / totalScale
+                };
+                ev.dataTransfer.setData('text/plain', dragData.name); 
+                
+                const emptyImage = new Image();
+                emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
+
+                setTimeout(() => newCol.classList.add('is-dragging'), 0);
+            });
+
+            newCol.addEventListener('dragend', () => {
+                newCol.classList.remove('is-dragging');
+                if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+                dragData = null;
+            });
+
+            newCol.addEventListener('dblclick', function() {
+                if (selectedItem === this) {
+                    selectedItem = null;
+                    document.getElementById('rotation-slider').disabled = true;
+                    document.getElementById('rotation-slider').value = 0;
+                    document.getElementById('rotation-input').disabled = true;
+                    document.getElementById('rotation-input').value = 0;
+                }
+                wall.removeChild(this);
+            });
+
+            wall.appendChild(newCol);
+        }
+
         async function loadInventory() {
             const inventoryDiv = document.getElementById('inventory');
             const categorySelect = document.getElementById('category-filter');
@@ -372,7 +475,7 @@
 
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'item';
-                    itemDiv.draggable = true;
+                    itemDiv.draggable = false;
                     itemDiv.dataset.category = item.category || 'Uncategorized';
                     itemDiv.dataset.name = item.name;
                     itemDiv.dataset.realWidth = item.width;
@@ -391,21 +494,32 @@
                         <small>${item.width}x${item.height}cm</small>
                     `;
 
-                    itemDiv.addEventListener('dragstart', (e) => {
-                        dragData = {
-                            name: itemDiv.dataset.name,
-                            image: itemDiv.dataset.image,
-                            realWidth: parseFloat(itemDiv.dataset.realWidth),
-                            realHeight: parseFloat(itemDiv.dataset.realHeight),
-                            rotation: 0,
-                            offsetX: 0,
-                            offsetY: 0
-                        };
-                        e.dataTransfer.setData('text/plain', dragData.name); 
-                    });
-                    itemDiv.addEventListener('dragend', () => {
-                        if (dragGhost) { dragGhost.remove(); dragGhost = null; }
-                        dragData = null;
+                    itemDiv.addEventListener('click', () => {
+                        const wallRect = wall.getBoundingClientRect();
+                        const canvasRect = canvasContainer.getBoundingClientRect();
+                        
+                        const centerX = (canvasRect.width / 2) - wallRect.left;
+                        const centerY = (canvasRect.height / 2) - wallRect.top;
+                        
+                        const totalScale = baseScale * currentZoom;
+                        const itemPixelWidth = parseFloat(item.width) * PIXELS_PER_CM;
+                        const itemPixelHeight = parseFloat(item.height) * PIXELS_PER_CM;
+
+                        const spawnLeft = (centerX / totalScale) - (itemPixelWidth / 2);
+                        const spawnTop = (centerY / totalScale) - (itemPixelHeight / 2);
+
+                        spawnItemOnWall({
+                            name: item.name,
+                            image: item.image,
+                            realWidth: parseFloat(item.width),
+                            realHeight: parseFloat(item.height),
+                            mode: document.getElementById('placement-mode').value,
+                            left: Math.max(0, spawnLeft), 
+                            top: Math.max(0, spawnTop),
+                            width: itemPixelWidth,
+                            height: itemPixelHeight,
+                            rotation: 0
+                        });
                     });
 
                     inventoryDiv.appendChild(itemDiv);
@@ -440,13 +554,11 @@
             document.getElementById('rotation-input').value = 0;
         }
 
-        // NEW: Improved Wall Updater. Hard Reset is only True when physical dimensions change!
         function updateVisualWall(hardReset = false) {
             const dims = getWallDimensionsInCm();
             const internalW = dims.w * PIXELS_PER_CM;
             const internalH = dims.h * PIXELS_PER_CM;
             
-            // Set the absolute internal pixel scale
             wall.style.width = internalW + 'px';
             wall.style.height = internalH + 'px';
             
@@ -456,7 +568,6 @@
             let maxW = canvasContainer.clientWidth - buffer;
             let maxH = canvasContainer.clientHeight - buffer;
             
-            // Re-calculate the visual base scale
             baseScale = Math.min(maxW / internalW, maxH / internalH);
             
             if (hardReset) {
@@ -468,7 +579,6 @@
             applyZoomTransforms();
         }
 
-        // Resizing window dynamically recalculates bounds WITHOUT clearing the wall!
         window.addEventListener('resize', () => updateVisualWall(false));
 
         function calculateDropPosition(e) {
@@ -591,6 +701,7 @@
             }
         });
 
+        // REFACTORED: Now uses spawnItemOnWall instead of duplicate code!
         wall.addEventListener('drop', (e) => {
             e.preventDefault();
             
@@ -610,111 +721,18 @@
                 dragData.sourceElement.remove();
             }
 
-            const newCol = document.createElement('div');
-            newCol.classList.add('dropped-col');
-            newCol.style.position = 'absolute';
-            newCol.draggable = true; 
-
-            newCol.addEventListener('click', (ev) => {
-                ev.stopPropagation(); 
-                if (selectedItem) selectedItem.style.outline = 'none';
-                selectedItem = newCol;
-                selectedItem.style.outline = '3px solid var(--highlight)';
-                selectedItem.style.outlineOffset = '-3px';
-
-                const rotValue = selectedItem.dataset.rotation || 0;
-                document.getElementById('rotation-slider').disabled = false;
-                document.getElementById('rotation-slider').value = rotValue;
-                document.getElementById('rotation-input').disabled = false;
-                document.getElementById('rotation-input').value = rotValue;
+            spawnItemOnWall({
+                name: dragData.name,
+                image: dragData.image,
+                realWidth: dragData.realWidth,
+                realHeight: dragData.realHeight,
+                mode: position.mode,
+                rotation: dragData.rotation || 0,
+                left: position.left,
+                top: position.top,
+                width: position.width,
+                height: position.height
             });
-
-            newCol.dataset.name = dragData.name;
-            newCol.dataset.image = dragData.image;
-            newCol.dataset.realWidth = dragData.realWidth;
-            newCol.dataset.realHeight = dragData.realHeight;
-            newCol.dataset.mode = position.mode;
-            
-            const dropRot = parseInt(dragData.rotation || '0');
-            newCol.dataset.rotation = dropRot;
-            newCol.style.transform = `rotate(${dropRot}deg)`;
-
-            newCol.dataset.mathLeft = position.left;
-            newCol.dataset.mathTop = position.top;
-            newCol.dataset.mathWidth = position.width;
-            newCol.dataset.mathHeight = position.height;
-            
-            newCol.style.width = (position.width + 1) + 'px'; 
-            newCol.style.height = (position.height + 1) + 'px'; 
-            newCol.style.left = position.left + 'px';
-            newCol.style.top = position.top + 'px';
-
-            const innerBg = document.createElement('div');
-            innerBg.className = 'inner-bg';
-            innerBg.style.backgroundImage = `url('${dragData.image}')`;
-            innerBg.style.backgroundSize = `100% 100%`;
-            innerBg.style.backgroundRepeat = 'no-repeat';
-            innerBg.style.backgroundPosition = `center`;
-            innerBg.style.pointerEvents = 'none'; 
-            newCol.appendChild(innerBg);
-
-            if (position.mode === 'overlay') {
-                newCol.classList.add('dropped-overlay'); 
-                newCol.style.zIndex = '10'; 
-                newCol.style.overflow = 'hidden';
-            } else {
-                newCol.classList.add('dropped-panel'); 
-                newCol.style.zIndex = '1'; 
-            }
-
-            newCol.addEventListener('dragstart', (ev) => {
-                const rect = newCol.getBoundingClientRect();
-                const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
-                const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
-                
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-
-                const totalScale = baseScale * currentZoom;
-
-                dragData = {
-                    name: newCol.dataset.name,
-                    image: newCol.dataset.image,
-                    realWidth: parseFloat(newCol.dataset.realWidth),
-                    realHeight: parseFloat(newCol.dataset.realHeight),
-                    sourceElement: newCol,
-                    sourceMode: newCol.dataset.mode,
-                    rotation: parseInt(newCol.dataset.rotation || '0'),
-                    offsetX: (mouseX - centerX) / totalScale,
-                    offsetY: (mouseY - centerY) / totalScale
-                };
-                ev.dataTransfer.setData('text/plain', dragData.name); 
-                
-                const emptyImage = new Image();
-                emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
-
-                setTimeout(() => newCol.classList.add('is-dragging'), 0);
-            });
-
-            newCol.addEventListener('dragend', () => {
-                newCol.classList.remove('is-dragging');
-                if (dragGhost) { dragGhost.remove(); dragGhost = null; }
-                dragData = null;
-            });
-
-            newCol.addEventListener('dblclick', function() {
-                if (selectedItem === this) {
-                    selectedItem = null;
-                    document.getElementById('rotation-slider').disabled = true;
-                    document.getElementById('rotation-slider').value = 0;
-                    document.getElementById('rotation-input').disabled = true;
-                    document.getElementById('rotation-input').value = 0;
-                }
-                wall.removeChild(this);
-            });
-
-            wall.appendChild(newCol);
         });
 
         window.onload = () => {
