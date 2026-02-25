@@ -167,6 +167,7 @@
             cursor: pointer; 
             user-select: none; 
             transform-origin: center center;
+            touch-action: none;
         }
         
         .inner-bg {
@@ -268,7 +269,7 @@
     </div>
 
     <script>
-        MobileDragDrop.polyfill({ holdToDrag: 0 });
+        MobileDragDrop.polyfill({ holdToDrag: 0, forceApply: true });
         window.addEventListener('touchmove', function() {}, {passive: false});
 
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
