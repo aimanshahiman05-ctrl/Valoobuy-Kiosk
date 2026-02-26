@@ -27,41 +27,31 @@
             overscroll-behavior-y: none; 
         }
 
+        /* SUPER CLEAN TOP BAR */
         .controls { 
             background: white; 
             padding: 10px 15px; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
             display: flex; 
-            gap: 10px; 
+            gap: 15px; 
             align-items: center; 
             z-index: 20; 
-            flex-wrap: wrap;
             justify-content: center; 
         }
         .controls label { font-weight: bold; font-size: 13px; display: flex; align-items: center; }
-        .controls input[type="number"], .controls select { 
+        .controls select { 
             padding: 6px; 
             border: 1px solid #ccc; 
             border-radius: 4px; 
             margin-left: 5px;
             font-size: 13px; 
         }
-        .controls input[type="number"] { width: 50px; }
-        
-        .controls input[type="color"] {
-            margin-left: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 0;
-            width: 30px;
-            height: 28px;
-            cursor: pointer;
-        }
         
         #placement-mode {
             background-color: #fff3f3;
             border: 2px solid var(--brand-color);
             color: var(--brand-color);
+            font-weight: bold;
         }
 
         .controls button {
@@ -74,12 +64,6 @@
             font-weight: bold;
         }
         .controls button:hover { background-color: #cc0000; }
-        
-        .controls button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            color: #666666;
-        }
 
         .zoom-controls {
             display: flex;
@@ -87,7 +71,6 @@
             background: #f0f0f0;
             padding: 4px 8px;
             border-radius: 6px;
-            margin-left: 10px;
         }
         .zoom-controls button {
             background: white;
@@ -96,20 +79,12 @@
             padding: 4px 10px;
             font-size: 16px;
         }
-        .zoom-controls button:hover:not(:disabled) { background: #ddd; }
+        .zoom-controls button:hover { background: #ddd; }
         .zoom-controls span { margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 40px; text-align: center; }
-
-        #rotation-input {
-            width: 45px !important;
-            padding: 4px;
-            text-align: center;
-            margin-left: 5px;
-            margin-right: 2px;
-        }
 
         .workspace { display: flex; flex: 1; overflow: hidden; }
         
-        /* NEW SIDEBAR LAYOUT */
+        /* UPDATED SIDEBAR WITH WALL SETUP */
         .sidebar { 
             width: 280px; 
             min-width: 250px; 
@@ -119,6 +94,30 @@
             flex-direction: column;
             overflow: hidden; 
         }
+        
+        .sidebar-setup {
+            padding: 15px;
+            background: #fdfdfd;
+            border-bottom: 2px solid #eee;
+        }
+        .setup-row { display: flex; gap: 5px; margin-bottom: 10px; }
+        .setup-row input[type="number"], .setup-row select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+        .setup-row input[type="color"] {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0;
+            width: 100%;
+            height: 30px;
+            cursor: pointer;
+        }
+
         .sidebar-filters {
             padding: 15px;
             border-bottom: 1px solid #ddd;
@@ -162,16 +161,11 @@
             justify-content: center;
             border-radius: 4px;
         }
-        .thumb-box img {
-            max-width: 100%;
-            height: 100%;
-            object-fit: contain;
-            pointer-events: none;
-        }
+        .thumb-box img { max-width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
         .item p { margin: 10px 0 0 0; font-size: 13px; font-weight: bold; }
         .item small { color: #666; font-size: 11px; }
 
-        .canvas-area { flex: 1; background: #e9ecef; overflow: auto; display: block; }
+        .canvas-area { flex: 1; background: #e9ecef; overflow: auto; display: block; position: relative; }
         #wall-wrapper { transition: width 0.2s, height 0.2s; }
 
         .wall { 
@@ -196,37 +190,53 @@
             -webkit-touch-callout: none;
         }
         
-        .inner-bg {
-            width: 100%;
-            height: 100%;
-        }
-
+        .inner-bg { width: 100%; height: 100%; }
         .is-dragging { opacity: 0.4; pointer-events: none; z-index: -1 !important; }
 
-        @media (max-width: 768px) {
-            .controls {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                justify-content: flex-start;
-                padding: 10px;
-                scrollbar-width: none; 
-            }
-            .controls::-webkit-scrollbar { display: none; } 
-            
-            .controls label, .controls button, .controls .zoom-controls {
-                flex-shrink: 0; 
-            }
+        /* FLOATING TOOLBAR STYLES */
+        .floating-toolbar {
+            position: fixed;
+            display: none;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 8px 12px;
+            z-index: 9999;
+            align-items: center;
+            gap: 10px;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+        }
+        .floating-toolbar::after {
+            content: ''; position: absolute; top: 100%; left: 50%;
+            margin-left: -6px; border-width: 6px; border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+        .floating-toolbar span { font-size: 12px; font-weight: bold; color: #333; }
+        .floating-toolbar input[type="range"] { width: 70px; }
+        .floating-toolbar input[type="number"] { width: 45px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .floating-toolbar .divider { width: 1px; height: 24px; background: #ddd; margin: 0 2px; }
+        .toolbar-btn {
+            background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;
+            padding: 6px 10px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+        }
+        .toolbar-btn:hover { background: #e0e0e0; }
+        .toolbar-btn.clone { background: #e6f4ea; color: #1e8e3e; border-color: #cce8d6; }
+        .toolbar-btn.clone:hover { background: #cce8d6; }
+        .toolbar-btn.delete { background: #fce8e6; color: #d93025; border-color: #fad2cf; }
+        .toolbar-btn.delete:hover { background: #fad2cf; }
 
+        @media (max-width: 768px) {
+            .controls { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 10px; scrollbar-width: none; }
+            .controls::-webkit-scrollbar { display: none; } 
+            .controls label, .controls button, .controls .zoom-controls { flex-shrink: 0; }
             .workspace { flex-direction: column-reverse; }
             
-            /* ADJUSTED MOBILE SIDEBAR FOR NEW SEARCH HEADER */
-            .sidebar {
-                width: 100%; min-width: 100%; height: auto; border-right: none;
-                border-top: 2px solid #ddd; display: flex; flex-direction: column; overflow: hidden;
-            }
-            .sidebar-filters {
-                display: flex; gap: 10px; padding: 10px; border-bottom: 1px solid #eee;
-            }
+            .sidebar { width: 100%; min-width: 100%; height: auto; border-right: none; border-top: 2px solid #ddd; }
+            .sidebar-setup { display: flex; gap: 10px; padding: 10px; overflow-x: auto; align-items: center; border-bottom: 1px solid #eee; }
+            .setup-row { margin-bottom: 0; flex-shrink: 0; }
+            .sidebar-filters { display: flex; gap: 10px; padding: 10px; border-bottom: 1px solid #eee; }
             .sidebar-filters input, .sidebar-filters select { margin-bottom: 0; }
             
             #inventory-list {
@@ -234,34 +244,14 @@
                 overflow-x: auto; overflow-y: hidden; padding: 10px; box-sizing: border-box; gap: 15px;
                 -webkit-overflow-scrolling: touch; 
             }
-            .item { 
-                min-width: 120px; 
-                margin-bottom: 0; 
-                padding: 5px; 
-                flex-shrink: 0; 
-                touch-action: pan-x; 
-            }
+            .item { min-width: 120px; margin-bottom: 0; padding: 5px; flex-shrink: 0; touch-action: pan-x; }
         }
     </style>
 </head>
 <body>
 
     <div class="controls">
-        <label>W: <input type="number" id="real-width" value="300" onchange="updateVisualWall(true)"></label>
-        <label>H: <input type="number" id="real-height" value="250" onchange="updateVisualWall(true)"></label>
-        <select id="unit-selector" onchange="updateVisualWall(true)">
-            <option value="cm">cm</option>
-            <option value="mm">mm</option>
-            <option value="inch">inch</option>
-            <option value="ft">ft</option>
-            <option value="m">m</option>
-        </select>
-        
-        <label style="margin-left: 10px;">Paint: 
-            <input type="color" id="wall-color" value="#ffffff" oninput="changeWallColor()">
-        </label>
-        
-        <label style="margin-left: 10px;">Mode: 
+        <label>Mode: 
             <select id="placement-mode">
                 <option value="panel">Wall Panel (Exact Size)</option>
                 <option value="overlay">Decor (Free Move)</option>
@@ -269,31 +259,42 @@
         </label>
 
         <div class="zoom-controls">
-            <span style="font-size: 13px;">Spin:</span>
-            <input type="range" id="rotation-slider" min="0" max="360" value="0" disabled oninput="onSliderRotate()" style="width: 80px; margin-left: 5px;">
-            <input type="number" id="rotation-input" min="-360" max="360" value="0" disabled oninput="onInputRotate()">
-            <span style="font-size: 13px; min-width: auto; margin-left: 0;">°</span>
-            
-            <button id="duplicate-btn" onclick="duplicateSelectedItem()" disabled style="margin-left: 15px; background-color: #28a745;">Clone</button>
-        </div>
-
-        <div class="zoom-controls">
             <button onclick="changeZoom(-0.2)">➖</button>
             <span id="zoom-label">100%</span>
             <button onclick="changeZoom(0.2)">➕</button>
         </div>
 
-        <button onclick="clearWall()" style="margin-left: 10px;">Clear Wall</button>
+        <button onclick="clearWall()">Clear Wall</button>
     </div>
 
     <div class="workspace">
         <div class="sidebar">
+            <div class="sidebar-setup">
+                <span style="font-weight: bold; font-size: 13px; margin-right: 5px;">Wall Setup:</span>
+                <div class="setup-row">
+                    <input type="number" id="real-width" value="300" onchange="updateVisualWall(true)" title="Width">
+                    <input type="number" id="real-height" value="250" onchange="updateVisualWall(true)" title="Height">
+                    <select id="unit-selector" onchange="updateVisualWall(true)">
+                        <option value="cm">cm</option>
+                        <option value="mm">mm</option>
+                        <option value="inch">in</option>
+                        <option value="ft">ft</option>
+                        <option value="m">m</option>
+                    </select>
+                </div>
+                <div class="setup-row" style="align-items: center;">
+                    <span style="font-size: 13px; margin-right: 5px; white-space: nowrap;">Paint:</span>
+                    <input type="color" id="wall-color" value="#ffffff" oninput="changeWallColor()">
+                </div>
+            </div>
+
             <div class="sidebar-filters">
                 <input type="text" id="search-bar" placeholder="Search items..." oninput="filterItems()">
                 <select id="category-filter" onchange="filterItems()">
                     <option value="all">All Categories</option>
                 </select>
             </div>
+            
             <div id="inventory-list">
                 <p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading fresh items...</p>
             </div>
@@ -306,6 +307,15 @@
         </div>
     </div>
 
+    <div id="floating-toolbar" class="floating-toolbar">
+        <span>Spin:</span>
+        <input type="range" id="float-rotation-slider" min="0" max="360" value="0" oninput="onFloatRotate()">
+        <input type="number" id="float-rotation-input" min="-360" max="360" value="0" oninput="onFloatInput()">
+        <div class="divider"></div>
+        <button class="toolbar-btn clone" onclick="duplicateSelectedItem()" title="Clone Panel">📄</button>
+        <button class="toolbar-btn delete" onclick="deleteSelectedItem()" title="Delete Panel">🗑️</button>
+    </div>
+
     <script>
         MobileDragDrop.polyfill({ holdToDrag: 50, forceApply: true });
         window.addEventListener('touchmove', function() {}, {passive: false});
@@ -314,6 +324,7 @@
         
         const wall = document.getElementById('wall');
         const canvasContainer = document.getElementById('canvas-container'); 
+        const floatingToolbar = document.getElementById('floating-toolbar');
         let dragData = null; 
         let dragGhost = null;
         
@@ -323,42 +334,82 @@
 
         let selectedItem = null;
 
-        canvasContainer.addEventListener('click', () => {
-            if (selectedItem) selectedItem.style.outline = 'none';
-            selectedItem = null;
-            
-            document.getElementById('rotation-slider').disabled = true;
-            document.getElementById('rotation-slider').value = 0;
-            document.getElementById('rotation-input').disabled = true;
-            document.getElementById('rotation-input').value = 0;
-            document.getElementById('duplicate-btn').disabled = true; 
+        // Deselect item when clicking empty canvas
+        canvasContainer.addEventListener('click', (ev) => {
+            if (ev.target === canvasContainer || ev.target === document.getElementById('wall-wrapper') || ev.target === wall) {
+                deselectCurrentItem();
+            }
         });
+
+        // Makes the toolbar instantly follow the item during scroll/zoom
+        canvasContainer.addEventListener('scroll', updateFloatingToolbarPosition);
+        window.addEventListener('resize', () => { updateVisualWall(false); updateFloatingToolbarPosition(); });
 
         function changeWallColor() {
             const chosenColor = document.getElementById('wall-color').value;
             wall.style.backgroundColor = chosenColor;
         }
 
-        function onSliderRotate() {
-            if (!selectedItem) return;
-            const rot = document.getElementById('rotation-slider').value;
-            document.getElementById('rotation-input').value = rot; 
+        // TOOLBAR FUNCTIONS
+        function selectItem(itemElement) {
+            if (selectedItem) selectedItem.style.outline = 'none';
+            selectedItem = itemElement;
+            selectedItem.style.outline = '3px solid var(--highlight)';
+            selectedItem.style.outlineOffset = '-3px';
+
+            const rotValue = selectedItem.dataset.rotation || 0;
+            document.getElementById('float-rotation-slider').value = rotValue;
+            document.getElementById('float-rotation-input').value = rotValue;
             
-            selectedItem.dataset.rotation = rot;
-            selectedItem.style.transform = `rotate(${rot}deg)`;
+            floatingToolbar.style.display = 'flex';
+            updateFloatingToolbarPosition();
         }
 
-        function onInputRotate() {
-            if (!selectedItem) return;
-            let rot = parseInt(document.getElementById('rotation-input').value) || 0;
+        function deselectCurrentItem() {
+            if (selectedItem) selectedItem.style.outline = 'none';
+            selectedItem = null;
+            floatingToolbar.style.display = 'none';
+        }
+
+        function updateFloatingToolbarPosition() {
+            if (!selectedItem || floatingToolbar.style.display === 'none') return;
             
+            const rect = selectedItem.getBoundingClientRect();
+            
+            // Position exactly top-center of the selected panel
+            const centerX = rect.left + (rect.width / 2);
+            const topY = rect.top;
+
+            floatingToolbar.style.left = centerX + 'px';
+            floatingToolbar.style.top = topY + 'px';
+        }
+
+        function onFloatRotate() {
+            if (!selectedItem) return;
+            const rot = document.getElementById('float-rotation-slider').value;
+            document.getElementById('float-rotation-input').value = rot; 
+            selectedItem.dataset.rotation = rot;
+            selectedItem.style.transform = `rotate(${rot}deg)`;
+            updateFloatingToolbarPosition(); // Re-center if rotation changes bounding box
+        }
+
+        function onFloatInput() {
+            if (!selectedItem) return;
+            let rot = parseInt(document.getElementById('float-rotation-input').value) || 0;
             if (rot > 360) rot = rot % 360;
             if (rot < 0) rot = (rot % 360) + 360; 
             
-            document.getElementById('rotation-slider').value = rot; 
-            
+            document.getElementById('float-rotation-slider').value = rot; 
             selectedItem.dataset.rotation = rot;
             selectedItem.style.transform = `rotate(${rot}deg)`;
+            updateFloatingToolbarPosition();
+        }
+
+        function deleteSelectedItem() {
+            if (selectedItem) {
+                wall.removeChild(selectedItem);
+                deselectCurrentItem();
+            }
         }
 
         function duplicateSelectedItem() {
@@ -404,6 +455,7 @@
             if (currentZoom > 3.0) currentZoom = 3.0; 
             document.getElementById('zoom-label').innerText = Math.round(currentZoom * 100) + '%';
             applyZoomTransforms();
+            updateFloatingToolbarPosition();
         }
 
         function applyZoomTransforms() {
@@ -443,17 +495,7 @@
 
             newCol.addEventListener('click', (ev) => {
                 ev.stopPropagation(); 
-                if (selectedItem) selectedItem.style.outline = 'none';
-                selectedItem = newCol;
-                selectedItem.style.outline = '3px solid var(--highlight)';
-                selectedItem.style.outlineOffset = '-3px';
-
-                const rotValue = selectedItem.dataset.rotation || 0;
-                document.getElementById('rotation-slider').disabled = false;
-                document.getElementById('rotation-slider').value = rotValue;
-                document.getElementById('rotation-input').disabled = false;
-                document.getElementById('rotation-input').value = rotValue;
-                document.getElementById('duplicate-btn').disabled = false; 
+                selectItem(newCol);
             });
 
             newCol.dataset.name = data.name;
@@ -494,6 +536,9 @@
             }
 
             newCol.addEventListener('dragstart', (ev) => {
+                // Hide toolbar while dragging
+                floatingToolbar.style.display = 'none'; 
+
                 const rect = newCol.getBoundingClientRect();
                 const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
                 const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
@@ -569,17 +614,14 @@
                 if (globalGhost) globalGhost.remove();
                 if (dragGhost) { dragGhost.remove(); dragGhost = null; }
                 dragData = null;
+                
+                // Pop the toolbar back up immediately where it landed!
+                selectItem(newCol);
             });
 
+            // Keep the double click as a secret fast-delete option!
             newCol.addEventListener('dblclick', function() {
-                if (selectedItem === this) {
-                    selectedItem = null;
-                    document.getElementById('rotation-slider').disabled = true;
-                    document.getElementById('rotation-slider').value = 0;
-                    document.getElementById('rotation-input').disabled = true;
-                    document.getElementById('rotation-input').value = 0;
-                    document.getElementById('duplicate-btn').disabled = true;
-                }
+                if (selectedItem === this) deselectCurrentItem();
                 wall.removeChild(this);
             });
 
@@ -705,36 +747,24 @@
             }
         }
 
-        // UPGRADED FILTER FUNCTION: Handles both Category Select and Search Text!
         function filterItems() {
             const selectedCategory = document.getElementById('category-filter').value;
             const searchQuery = document.getElementById('search-bar').value.toLowerCase();
-            
             const allItems = document.querySelectorAll('#inventory-list .item');
             
             allItems.forEach(item => {
                 const itemName = item.dataset.name.toLowerCase();
                 const itemCategory = item.dataset.category;
-                
                 const matchesCategory = (selectedCategory === 'all' || itemCategory === selectedCategory);
                 const matchesSearch = itemName.includes(searchQuery);
                 
-                if (matchesCategory && matchesSearch) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
+                item.style.display = (matchesCategory && matchesSearch) ? 'block' : 'none';
             });
         }
 
         function clearWall() {
             wall.innerHTML = ''; 
-            selectedItem = null;
-            document.getElementById('rotation-slider').disabled = true;
-            document.getElementById('rotation-slider').value = 0;
-            document.getElementById('rotation-input').disabled = true;
-            document.getElementById('rotation-input').value = 0;
-            document.getElementById('duplicate-btn').disabled = true;
+            deselectCurrentItem();
         }
 
         function updateVisualWall(hardReset = false) {
@@ -761,8 +791,6 @@
             
             applyZoomTransforms();
         }
-
-        window.addEventListener('resize', () => updateVisualWall(false));
 
         function calculateDropPosition(e) {
             if (!dragData) return { left: 0, top: 0, isFull: true, width: 0, height: 0, mode: 'panel' };
@@ -899,11 +927,11 @@
             }
 
             if (dragData.sourceElement) {
-                if (dragData.sourceElement === selectedItem) selectedItem = null;
+                if (dragData.sourceElement === selectedItem) deselectCurrentItem();
                 dragData.sourceElement.remove();
             }
 
-            spawnItemOnWall({
+            const newDroppedItem = spawnItemOnWall({
                 name: dragData.name,
                 image: dragData.image,
                 realWidth: dragData.realWidth,
@@ -915,6 +943,9 @@
                 width: position.width,
                 height: position.height
             });
+            
+            // Auto-select the item immediately after dropping it!
+            setTimeout(() => selectItem(newDroppedItem), 10);
         });
 
         window.onload = () => {
