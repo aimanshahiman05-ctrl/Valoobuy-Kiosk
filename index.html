@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Valoobuy Kiosk - Wall Design Visualizer</title>
     
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+
     <style>
         :root {
             --brand-color: #e60000; 
@@ -174,6 +177,8 @@
             height: 100%;
         }
 
+        .is-dragging { opacity: 0.4; pointer-events: none; z-index: -1 !important; }
+
         @media (max-width: 768px) {
             .controls {
                 flex-wrap: nowrap;
@@ -266,15 +271,15 @@
     </div>
 
     <script>
+        MobileDragDrop.polyfill({ holdToDrag: 50, forceApply: true });
+        window.addEventListener('touchmove', function() {}, {passive: false});
+
         const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw-hlrFfToBt3JUz2N380tFLbmdJjLnTIGuIWxNC8g0RekRRoCLV8yXml_5B8rQ5QlY/exec';
         
         const wall = document.getElementById('wall');
         const canvasContainer = document.getElementById('canvas-container'); 
-        
-        // NEW: Core Variables for True Instant Follow tracking
-        let activeDragItem = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
+        let dragData = null; 
+        let dragGhost = null;
         
         let currentZoom = 1.0;
         let baseScale = 1.0;
@@ -353,12 +358,7 @@
             });
 
             setTimeout(() => {
-                if (newClone) {
-                    selectedItem.style.outline = 'none';
-                    selectedItem = newClone;
-                    selectedItem.style.outline = '3px solid var(--highlight)';
-                    selectedItem.style.outlineOffset = '-3px';
-                }
+                if (newClone) newClone.click();
             }, 10);
         }
 
@@ -403,109 +403,21 @@
             const newCol = document.createElement('div');
             newCol.classList.add('dropped-col');
             newCol.style.position = 'absolute';
-            newCol.draggable = false; // We disabled HTML5 Dragging entirely!
+            newCol.draggable = true; 
 
-            // NEW: True Instant Follow (Pointer Down = Instantly attach to finger)
-            newCol.addEventListener('pointerdown', (ev) => {
+            newCol.addEventListener('click', (ev) => {
                 ev.stopPropagation(); 
-                
-                // 1. Select the item visually
-                if (selectedItem && selectedItem !== newCol) selectedItem.style.outline = 'none';
+                if (selectedItem) selectedItem.style.outline = 'none';
                 selectedItem = newCol;
                 selectedItem.style.outline = '3px solid var(--highlight)';
                 selectedItem.style.outlineOffset = '-3px';
 
-                // 2. Activate control menu
                 const rotValue = selectedItem.dataset.rotation || 0;
                 document.getElementById('rotation-slider').disabled = false;
                 document.getElementById('rotation-slider').value = rotValue;
                 document.getElementById('rotation-input').disabled = false;
                 document.getElementById('rotation-input').value = rotValue;
                 document.getElementById('duplicate-btn').disabled = false; 
-
-                // 3. Initiate Instant Follow Tracking
-                activeDragItem = newCol;
-                activeDragItem.style.zIndex = '100'; // Bring to front while sliding
-                
-                // Calculate exact math offset to prevent visual "jumping" when touched
-                const totalScale = baseScale * currentZoom;
-                const wallRect = wall.getBoundingClientRect();
-                const fingerGridX = (ev.clientX - wallRect.left) / totalScale;
-                const fingerGridY = (ev.clientY - wallRect.top) / totalScale;
-                
-                dragOffsetX = fingerGridX - parseFloat(activeDragItem.dataset.mathLeft);
-                dragOffsetY = fingerGridY - parseFloat(activeDragItem.dataset.mathTop);
-
-                // Forces device to keep tracking even if your finger slides fast!
-                activeDragItem.setPointerCapture(ev.pointerId);
-            });
-
-            newCol.addEventListener('click', (ev) => {
-                ev.stopPropagation(); 
-            });
-
-            // NEW: True Instant Follow (Pointer Move = Slide item)
-            newCol.addEventListener('pointermove', (ev) => {
-                if (activeDragItem !== newCol) return;
-
-                const totalScale = baseScale * currentZoom;
-                const wallRect = wall.getBoundingClientRect();
-
-                // Calculate where the panel *wants* to go based on your finger
-                const fingerGridX = (ev.clientX - wallRect.left) / totalScale;
-                const fingerGridY = (ev.clientY - wallRect.top) / totalScale;
-                let proposedLeft = fingerGridX - dragOffsetX;
-                let proposedTop = fingerGridY - dragOffsetY;
-
-                const itemPixelWidth = parseFloat(activeDragItem.dataset.mathWidth);
-                const itemPixelHeight = parseFloat(activeDragItem.dataset.mathHeight);
-                const mode = activeDragItem.dataset.mode;
-
-                // Test the proposed spot in our math engine
-                let finalPos = calculateLivePosition(proposedLeft, proposedTop, itemPixelWidth, itemPixelHeight, mode, activeDragItem);
-
-                // Instantly apply the snapped coordinates to the DOM
-                activeDragItem.dataset.mathLeft = finalPos.left;
-                activeDragItem.dataset.mathTop = finalPos.top;
-                activeDragItem.style.left = finalPos.left + 'px';
-                activeDragItem.style.top = finalPos.top + 'px';
-
-                // Paint red if it is completely off the wall
-                if (finalPos.isFull) {
-                    activeDragItem.style.backgroundColor = 'rgba(230, 0, 0, 0.4)';
-                } else {
-                    activeDragItem.style.backgroundColor = 'transparent';
-                }
-            });
-
-            // NEW: True Instant Follow (Pointer Up = Lock in place)
-            const releasePointer = (ev) => {
-                if (activeDragItem === newCol) {
-                    // Restore original layering depth based on its mode
-                    activeDragItem.style.zIndex = activeDragItem.dataset.mode === 'overlay' ? '10' : '1';
-                    
-                    if (activeDragItem.style.backgroundColor !== 'transparent') {
-                        activeDragItem.style.backgroundColor = 'transparent';
-                    }
-                    activeDragItem.releasePointerCapture(ev.pointerId);
-                    activeDragItem = null;
-                }
-            };
-            
-            newCol.addEventListener('pointerup', releasePointer);
-            newCol.addEventListener('pointercancel', releasePointer);
-
-            // Keep the easy double-tap to delete!
-            newCol.addEventListener('dblclick', function(ev) {
-                if (selectedItem === this) {
-                    selectedItem = null;
-                    document.getElementById('rotation-slider').disabled = true;
-                    document.getElementById('rotation-slider').value = 0;
-                    document.getElementById('rotation-input').disabled = true;
-                    document.getElementById('rotation-input').value = 0;
-                    document.getElementById('duplicate-btn').disabled = true;
-                }
-                wall.removeChild(this);
             });
 
             newCol.dataset.name = data.name;
@@ -524,6 +436,7 @@
             newCol.style.height = (data.height + 1) + 'px'; 
             newCol.style.left = data.left + 'px';
             newCol.style.top = data.top + 'px';
+
             newCol.style.transform = `rotate(${data.rotation || 0}deg)`;
 
             const innerBg = document.createElement('div');
@@ -543,6 +456,53 @@
                 newCol.classList.add('dropped-panel'); 
                 newCol.style.zIndex = '1'; 
             }
+
+            newCol.addEventListener('dragstart', (ev) => {
+                const rect = newCol.getBoundingClientRect();
+                const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
+                const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
+                
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const totalScale = baseScale * currentZoom;
+
+                dragData = {
+                    name: newCol.dataset.name,
+                    image: newCol.dataset.image,
+                    realWidth: parseFloat(newCol.dataset.realWidth),
+                    realHeight: parseFloat(newCol.dataset.realHeight),
+                    sourceElement: newCol,
+                    sourceMode: newCol.dataset.mode,
+                    rotation: parseInt(newCol.dataset.rotation || '0'),
+                    offsetX: (mouseX - centerX) / totalScale,
+                    offsetY: (mouseY - centerY) / totalScale
+                };
+                ev.dataTransfer.setData('text/plain', dragData.name); 
+                
+                const emptyImage = new Image();
+                emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
+
+                setTimeout(() => newCol.classList.add('is-dragging'), 0);
+            });
+
+            newCol.addEventListener('dragend', () => {
+                newCol.classList.remove('is-dragging');
+                if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+                dragData = null;
+            });
+
+            newCol.addEventListener('dblclick', function() {
+                if (selectedItem === this) {
+                    selectedItem = null;
+                    document.getElementById('rotation-slider').disabled = true;
+                    document.getElementById('rotation-slider').value = 0;
+                    document.getElementById('rotation-input').disabled = true;
+                    document.getElementById('rotation-input').value = 0;
+                    document.getElementById('duplicate-btn').disabled = true;
+                }
+                wall.removeChild(this);
+            });
 
             wall.appendChild(newCol);
             
@@ -673,19 +633,32 @@
 
         window.addEventListener('resize', () => updateVisualWall(false));
 
-        // NEW: Upgraded collision engine for real-time tracking
-        function calculateLivePosition(proposedLeft, proposedTop, itemPixelWidth, itemPixelHeight, mode, movingElement) {
+        function calculateDropPosition(e) {
+            if (!dragData) return { left: 0, top: 0, isFull: true, width: 0, height: 0, mode: 'panel' };
+            
+            const totalScale = baseScale * currentZoom;
+            const itemPixelWidth = dragData.realWidth * PIXELS_PER_CM;
+            const itemPixelHeight = dragData.realHeight * PIXELS_PER_CM;
+            
+            const wallRect = wall.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            let proposedLeft = (clientX - wallRect.left) / totalScale - (itemPixelWidth / 2) - (dragData.offsetX || 0);
+            let proposedTop = (clientY - wallRect.top) / totalScale - (itemPixelHeight / 2) - (dragData.offsetY || 0);
+
+            const mode = dragData.sourceMode || document.getElementById('placement-mode').value;
+
             if (mode === 'overlay') {
-                return { left: proposedLeft, top: proposedTop, isFull: false };
+                return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: false, mode: 'overlay' };
             }
 
             const SNAP = 20;
             if (proposedLeft < SNAP) proposedLeft = 0;
             if (proposedTop < SNAP) proposedTop = 0;
 
-            // We filter out the exact item we are dragging so it doesn't collide with itself
             const existingCols = Array.from(wall.querySelectorAll('.dropped-panel'))
-                                      .filter(col => col !== movingElement);
+                                      .filter(col => !col.classList.contains('is-dragging'));
             
             existingCols.forEach(col => {
                 const exLeft = parseFloat(col.dataset.mathLeft);
@@ -733,11 +706,85 @@
                 wallIsFull = true; 
             }
 
-            return { left: proposedLeft, top: proposedTop, isFull: wallIsFull };
+            return { left: proposedLeft, top: proposedTop, width: itemPixelWidth, height: itemPixelHeight, isFull: wallIsFull, mode: 'panel' };
         }
         
         function internalW() { return parseFloat(wall.style.width); }
         function internalH() { return parseFloat(wall.style.height); }
+
+        wall.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            if (!dragData) return;
+
+            if (!dragGhost) {
+                dragGhost = document.createElement('div');
+                dragGhost.style.position = 'absolute';
+                dragGhost.style.pointerEvents = 'none'; 
+                dragGhost.style.zIndex = '1000'; 
+                dragGhost.style.transformOrigin = 'center center'; 
+                dragGhost.style.boxSizing = 'border-box'; 
+                
+                dragGhost.style.backgroundImage = `url('${dragData.image}')`;
+                dragGhost.style.backgroundSize = '100% 100%';
+                dragGhost.style.backgroundPosition = 'center';
+                dragGhost.style.backgroundRepeat = 'no-repeat';
+                dragGhost.style.opacity = '0.7'; 
+                
+                wall.appendChild(dragGhost);
+            }
+
+            const position = calculateDropPosition(e);
+
+            dragGhost.style.width = position.width + 'px';
+            dragGhost.style.height = position.height + 'px';
+            dragGhost.style.top = position.top + 'px';
+            dragGhost.style.left = position.left + 'px';
+
+            dragGhost.style.transform = `rotate(${dragData.rotation || 0}deg)`;
+
+            if (position.isFull) {
+                dragGhost.style.outline = '2px dashed #e60000';
+                dragGhost.style.outlineOffset = '-2px';
+                dragGhost.style.backgroundColor = 'rgba(230, 0, 0, 0.4)';
+            } else {
+                dragGhost.style.outline = '2px dashed #28a745';
+                dragGhost.style.outlineOffset = '-2px';
+                dragGhost.style.backgroundColor = 'rgba(40, 167, 69, 0.4)';
+            }
+        });
+
+        wall.addEventListener('drop', (e) => {
+            e.preventDefault();
+            
+            if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+            if (!dragData) return;
+
+            const position = calculateDropPosition(e);
+            if (position.isFull) {
+                const currentColor = wall.style.backgroundColor;
+                wall.style.backgroundColor = '#ffe6e6';
+                setTimeout(() => wall.style.backgroundColor = currentColor, 200);
+                return; 
+            }
+
+            if (dragData.sourceElement) {
+                if (dragData.sourceElement === selectedItem) selectedItem = null;
+                dragData.sourceElement.remove();
+            }
+
+            spawnItemOnWall({
+                name: dragData.name,
+                image: dragData.image,
+                realWidth: dragData.realWidth,
+                realHeight: dragData.realHeight,
+                mode: position.mode,
+                rotation: dragData.rotation || 0,
+                left: position.left,
+                top: position.top,
+                width: position.width,
+                height: position.height
+            });
+        });
 
         window.onload = () => {
             loadInventory();
