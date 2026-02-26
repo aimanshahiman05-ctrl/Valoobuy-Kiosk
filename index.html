@@ -507,16 +507,16 @@
             newCol.addEventListener('drag', (ev) => {
                 const globalGhost = document.getElementById('global-ghost');
                 if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
-                    const canvasRect = canvasContainer.getBoundingClientRect();
-                    const isInsideCanvas = ev.clientX >= canvasRect.left && ev.clientX <= canvasRect.right && 
-                                           ev.clientY >= canvasRect.top && ev.clientY <= canvasRect.bottom;
+                    // Changed from canvasContainer to wall!
+                    const wallRect = wall.getBoundingClientRect();
+                    const isInsideWall = ev.clientX >= wallRect.left && ev.clientX <= wallRect.right && 
+                                         ev.clientY >= wallRect.top && ev.clientY <= wallRect.bottom;
                     
-                    if (isInsideCanvas) {
+                    if (isInsideWall) {
                         globalGhost.style.display = 'none'; 
                     } else {
                         globalGhost.style.display = 'block'; 
                         
-                        // Recalculate true size to position perfectly under your cursor offset
                         const totalScale = baseScale * currentZoom;
                         const itemW = parseFloat(newCol.dataset.realWidth) * PIXELS_PER_CM * totalScale;
                         const itemH = parseFloat(newCol.dataset.realHeight) * PIXELS_PER_CM * totalScale;
@@ -632,20 +632,20 @@
                     itemDiv.addEventListener('drag', (ev) => {
                         const globalGhost = document.getElementById('global-ghost');
                         if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
-                            const canvasRect = canvasContainer.getBoundingClientRect();
-                            const isInsideCanvas = ev.clientX >= canvasRect.left && ev.clientX <= canvasRect.right && 
-                                                   ev.clientY >= canvasRect.top && ev.clientY <= canvasRect.bottom;
+                            // Changed from canvasContainer to wall!
+                            const wallRect = wall.getBoundingClientRect(); 
+                            const isInsideWall = ev.clientX >= wallRect.left && ev.clientX <= wallRect.right && 
+                                                 ev.clientY >= wallRect.top && ev.clientY <= wallRect.bottom;
                             
-                            if (isInsideCanvas) {
-                                globalGhost.style.display = 'none'; 
+                            if (isInsideWall) {
+                                globalGhost.style.display = 'none'; // Inside the wall? Let the grid snap take over
                             } else {
-                                globalGhost.style.display = 'block'; 
+                                globalGhost.style.display = 'block'; // Outside the wall? Keep showing true size
                                 
                                 const totalScale = baseScale * currentZoom;
                                 const itemW = parseFloat(item.width) * PIXELS_PER_CM * totalScale;
                                 const itemH = parseFloat(item.height) * PIXELS_PER_CM * totalScale;
                                 
-                                // Center perfectly on cursor
                                 globalGhost.style.left = (ev.clientX - (itemW / 2)) + 'px';
                                 globalGhost.style.top = (ev.clientY - (itemH / 2)) + 'px';
                             }
