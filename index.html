@@ -526,7 +526,7 @@
 
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'item';
-                    itemDiv.draggable = false;
+                    itemDiv.draggable = true;
                     itemDiv.dataset.category = item.category || 'Uncategorized';
                     itemDiv.dataset.name = item.name;
                     itemDiv.dataset.realWidth = item.width;
@@ -545,32 +545,33 @@
                         <small>${item.width}x${item.height}cm</small>
                     `;
 
-                    itemDiv.addEventListener('click', () => {
-                        const wallRect = wall.getBoundingClientRect();
-                        const canvasRect = canvasContainer.getBoundingClientRect();
+                    itemDiv.addEventListener('dragstart', (ev) => {
+                        const rect = itemDiv.getBoundingClientRect();
+                        const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
+                        const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
                         
-                        const centerX = (canvasRect.width / 2) - wallRect.left;
-                        const centerY = (canvasRect.height / 2) - wallRect.top;
-                        
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
                         const totalScale = baseScale * currentZoom;
-                        const itemPixelWidth = parseFloat(item.width) * PIXELS_PER_CM;
-                        const itemPixelHeight = parseFloat(item.height) * PIXELS_PER_CM;
 
-                        const spawnLeft = (centerX / totalScale) - (itemPixelWidth / 2);
-                        const spawnTop = (centerY / totalScale) - (itemPixelHeight / 2);
-
-                        spawnItemOnWall({
+                        // Package the item data to send to the wall
+                        dragData = {
                             name: item.name,
                             image: item.image,
                             realWidth: parseFloat(item.width),
                             realHeight: parseFloat(item.height),
-                            mode: document.getElementById('placement-mode').value,
-                            left: Math.max(0, spawnLeft), 
-                            top: Math.max(0, spawnTop),
-                            width: itemPixelWidth,
-                            height: itemPixelHeight,
-                            rotation: 0
-                        });
+                            sourceElement: null, // Null tells the wall this is a BRAND NEW item!
+                            sourceMode: document.getElementById('placement-mode').value,
+                            rotation: 0,
+                            offsetX: (mouseX - centerX) / totalScale,
+                            offsetY: (mouseY - centerY) / totalScale
+                        };
+                        ev.dataTransfer.setData('text/plain', dragData.name); 
+                        
+                        // Hide the default browser drag image
+                        const emptyImage = new Image();
+                        emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                        if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
                     });
 
                     inventoryDiv.appendChild(itemDiv);
