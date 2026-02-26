@@ -109,14 +109,38 @@
 
         .workspace { display: flex; flex: 1; overflow: hidden; }
         
+        /* NEW SIDEBAR LAYOUT */
         .sidebar { 
             width: 280px; 
             min-width: 250px; 
             background: white; 
             border-right: 1px solid #ddd; 
-            padding: 15px; 
-            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
         }
+        .sidebar-filters {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            background: #fdfdfd;
+        }
+        .sidebar-filters input, .sidebar-filters select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+        .sidebar-filters select { margin-bottom: 0; }
+        
+        #inventory-list {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
         .item { 
             background: white; 
             border: 1px solid #ddd; 
@@ -194,9 +218,19 @@
             }
 
             .workspace { flex-direction: column-reverse; }
+            
+            /* ADJUSTED MOBILE SIDEBAR FOR NEW SEARCH HEADER */
             .sidebar {
-                width: 100%; min-width: 100%; height: 140px; border-right: none;
-                border-top: 2px solid #ddd; display: flex; flex-direction: row;
+                width: 100%; min-width: 100%; height: auto; border-right: none;
+                border-top: 2px solid #ddd; display: flex; flex-direction: column; overflow: hidden;
+            }
+            .sidebar-filters {
+                display: flex; gap: 10px; padding: 10px; border-bottom: 1px solid #eee;
+            }
+            .sidebar-filters input, .sidebar-filters select { margin-bottom: 0; }
+            
+            #inventory-list {
+                height: 140px; display: flex; flex-direction: row;
                 overflow-x: auto; overflow-y: hidden; padding: 10px; box-sizing: border-box; gap: 15px;
                 -webkit-overflow-scrolling: touch; 
             }
@@ -249,18 +283,20 @@
             <button onclick="changeZoom(0.2)">➕</button>
         </div>
 
-        <label style="margin-left: 10px;">Filter: 
-            <select id="category-filter" onchange="filterItems()">
-                <option value="all">All Items</option>
-            </select>
-        </label>
-
         <button onclick="clearWall()" style="margin-left: 10px;">Clear Wall</button>
     </div>
 
     <div class="workspace">
-        <div class="sidebar" id="inventory">
-            <p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading fresh items...</p>
+        <div class="sidebar">
+            <div class="sidebar-filters">
+                <input type="text" id="search-bar" placeholder="Search items..." oninput="filterItems()">
+                <select id="category-filter" onchange="filterItems()">
+                    <option value="all">All Categories</option>
+                </select>
+            </div>
+            <div id="inventory-list">
+                <p id="loading-text" style="text-align: center; color: #666; width: 100%;">Loading fresh items...</p>
+            </div>
         </div>
 
         <div class="canvas-area" id="canvas-container">
@@ -485,7 +521,6 @@
 
                 setTimeout(() => newCol.classList.add('is-dragging'), 0);
 
-                // TRUE SIZE GHOST: Calculated perfectly based on wall zoom!
                 const itemW = parseFloat(newCol.dataset.realWidth) * PIXELS_PER_CM * totalScale;
                 const itemH = parseFloat(newCol.dataset.realHeight) * PIXELS_PER_CM * totalScale;
 
@@ -507,7 +542,6 @@
             newCol.addEventListener('drag', (ev) => {
                 const globalGhost = document.getElementById('global-ghost');
                 if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
-                    // Changed from canvasContainer to wall!
                     const wallRect = wall.getBoundingClientRect();
                     const isInsideWall = ev.clientX >= wallRect.left && ev.clientX <= wallRect.right && 
                                          ev.clientY >= wallRect.top && ev.clientY <= wallRect.bottom;
@@ -555,7 +589,7 @@
         }
 
         async function loadInventory() {
-            const inventoryDiv = document.getElementById('inventory');
+            const inventoryDiv = document.getElementById('inventory-list');
             const categorySelect = document.getElementById('category-filter');
 
             try {
@@ -593,7 +627,6 @@
                     itemDiv.addEventListener('dragstart', (ev) => {
                         const totalScale = baseScale * currentZoom;
 
-                        // Zero out the offset so new items pop directly into the center of the cursor!
                         dragData = {
                             name: item.name,
                             image: item.image,
@@ -611,7 +644,6 @@
                         emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                         if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
 
-                        // TRUE SIZE GHOST: Calculated perfectly based on wall zoom!
                         const itemW = parseFloat(item.width) * PIXELS_PER_CM * totalScale;
                         const itemH = parseFloat(item.height) * PIXELS_PER_CM * totalScale;
 
@@ -632,15 +664,14 @@
                     itemDiv.addEventListener('drag', (ev) => {
                         const globalGhost = document.getElementById('global-ghost');
                         if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
-                            // Changed from canvasContainer to wall!
-                            const wallRect = wall.getBoundingClientRect(); 
+                            const wallRect = wall.getBoundingClientRect();
                             const isInsideWall = ev.clientX >= wallRect.left && ev.clientX <= wallRect.right && 
                                                  ev.clientY >= wallRect.top && ev.clientY <= wallRect.bottom;
                             
                             if (isInsideWall) {
-                                globalGhost.style.display = 'none'; // Inside the wall? Let the grid snap take over
+                                globalGhost.style.display = 'none'; 
                             } else {
-                                globalGhost.style.display = 'block'; // Outside the wall? Keep showing true size
+                                globalGhost.style.display = 'block'; 
                                 
                                 const totalScale = baseScale * currentZoom;
                                 const itemW = parseFloat(item.width) * PIXELS_PER_CM * totalScale;
@@ -674,11 +705,25 @@
             }
         }
 
+        // UPGRADED FILTER FUNCTION: Handles both Category Select and Search Text!
         function filterItems() {
             const selectedCategory = document.getElementById('category-filter').value;
-            const allItems = document.querySelectorAll('.sidebar .item');
+            const searchQuery = document.getElementById('search-bar').value.toLowerCase();
+            
+            const allItems = document.querySelectorAll('#inventory-list .item');
+            
             allItems.forEach(item => {
-                item.style.display = (selectedCategory === 'all' || item.dataset.category === selectedCategory) ? 'block' : 'none';
+                const itemName = item.dataset.name.toLowerCase();
+                const itemCategory = item.dataset.category;
+                
+                const matchesCategory = (selectedCategory === 'all' || itemCategory === selectedCategory);
+                const matchesSearch = itemName.includes(searchQuery);
+                
+                if (matchesCategory && matchesSearch) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
             });
         }
 
