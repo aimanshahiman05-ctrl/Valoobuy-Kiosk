@@ -484,10 +484,45 @@
                 if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
 
                 setTimeout(() => newCol.classList.add('is-dragging'), 0);
+
+                // NEW: Global ghost for moving wall items off-canvas
+                if (!document.getElementById('global-ghost')) {
+                    const globalGhost = document.createElement('img');
+                    globalGhost.id = 'global-ghost';
+                    globalGhost.src = newCol.dataset.image;
+                    globalGhost.style.position = 'fixed';
+                    globalGhost.style.zIndex = '999999';
+                    globalGhost.style.pointerEvents = 'none';
+                    globalGhost.style.width = '80px'; 
+                    globalGhost.style.height = 'auto';
+                    globalGhost.style.opacity = '0.8';
+                    globalGhost.style.display = 'none'; // Starts hidden because we are inside the canvas
+                    document.body.appendChild(globalGhost);
+                }
+            });
+
+            // NEW: Track the mouse when dragged off the wall
+            newCol.addEventListener('drag', (ev) => {
+                const globalGhost = document.getElementById('global-ghost');
+                if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
+                    const canvasRect = canvasContainer.getBoundingClientRect();
+                    const isInsideCanvas = ev.clientX >= canvasRect.left && ev.clientX <= canvasRect.right && 
+                                           ev.clientY >= canvasRect.top && ev.clientY <= canvasRect.bottom;
+                    
+                    if (isInsideCanvas) {
+                        globalGhost.style.display = 'none'; 
+                    } else {
+                        globalGhost.style.display = 'block'; 
+                        globalGhost.style.left = (ev.clientX + 10) + 'px';
+                        globalGhost.style.top = (ev.clientY + 10) + 'px';
+                    }
+                }
             });
 
             newCol.addEventListener('dragend', () => {
                 newCol.classList.remove('is-dragging');
+                const globalGhost = document.getElementById('global-ghost');
+                if (globalGhost) globalGhost.remove();
                 if (dragGhost) { dragGhost.remove(); dragGhost = null; }
                 dragData = null;
             });
@@ -554,13 +589,12 @@
                         const centerY = rect.top + rect.height / 2;
                         const totalScale = baseScale * currentZoom;
 
-                        // Package the item data to send to the wall
                         dragData = {
                             name: item.name,
                             image: item.image,
                             realWidth: parseFloat(item.width),
                             realHeight: parseFloat(item.height),
-                            sourceElement: null, // Null tells the wall this is a BRAND NEW item!
+                            sourceElement: null, 
                             sourceMode: document.getElementById('placement-mode').value,
                             rotation: 0,
                             offsetX: (mouseX - centerX) / totalScale,
@@ -568,10 +602,49 @@
                         };
                         ev.dataTransfer.setData('text/plain', dragData.name); 
                         
-                        // Hide the default browser drag image
                         const emptyImage = new Image();
                         emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                         if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
+
+                        // NEW: Spawn a custom floating image for the sidebar!
+                        if (!document.getElementById('global-ghost')) {
+                            const globalGhost = document.createElement('img');
+                            globalGhost.id = 'global-ghost';
+                            globalGhost.src = item.image;
+                            globalGhost.style.position = 'fixed';
+                            globalGhost.style.zIndex = '999999';
+                            globalGhost.style.pointerEvents = 'none';
+                            globalGhost.style.width = '80px'; 
+                            globalGhost.style.height = 'auto';
+                            globalGhost.style.opacity = '0.8';
+                            document.body.appendChild(globalGhost);
+                        }
+                    });
+
+                    // NEW: Make the image follow the mouse, but hide it if over the canvas
+                    itemDiv.addEventListener('drag', (ev) => {
+                        const globalGhost = document.getElementById('global-ghost');
+                        if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
+                            const canvasRect = canvasContainer.getBoundingClientRect();
+                            const isInsideCanvas = ev.clientX >= canvasRect.left && ev.clientX <= canvasRect.right && 
+                                                   ev.clientY >= canvasRect.top && ev.clientY <= canvasRect.bottom;
+                            
+                            if (isInsideCanvas) {
+                                globalGhost.style.display = 'none'; // Inside canvas? Let the red/green wall ghost take over!
+                            } else {
+                                globalGhost.style.display = 'block'; // Outside canvas? Show this mini-ghost!
+                                globalGhost.style.left = (ev.clientX + 10) + 'px';
+                                globalGhost.style.top = (ev.clientY + 10) + 'px';
+                            }
+                        }
+                    });
+
+                    // NEW: Destroy the ghost when the user lets go of the mouse
+                    itemDiv.addEventListener('dragend', () => {
+                        const globalGhost = document.getElementById('global-ghost');
+                        if (globalGhost) globalGhost.remove();
+                        if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+                        dragData = null;
                     });
 
                     inventoryDiv.appendChild(itemDiv);
