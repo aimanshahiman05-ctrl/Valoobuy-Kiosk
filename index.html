@@ -485,7 +485,10 @@
 
                 setTimeout(() => newCol.classList.add('is-dragging'), 0);
 
-                // NEW: Global ghost for moving wall items off-canvas
+                // TRUE SIZE GHOST: Calculated perfectly based on wall zoom!
+                const itemW = parseFloat(newCol.dataset.realWidth) * PIXELS_PER_CM * totalScale;
+                const itemH = parseFloat(newCol.dataset.realHeight) * PIXELS_PER_CM * totalScale;
+
                 if (!document.getElementById('global-ghost')) {
                     const globalGhost = document.createElement('img');
                     globalGhost.id = 'global-ghost';
@@ -493,15 +496,14 @@
                     globalGhost.style.position = 'fixed';
                     globalGhost.style.zIndex = '999999';
                     globalGhost.style.pointerEvents = 'none';
-                    globalGhost.style.width = '80px'; 
-                    globalGhost.style.height = 'auto';
+                    globalGhost.style.width = itemW + 'px'; 
+                    globalGhost.style.height = itemH + 'px';
                     globalGhost.style.opacity = '0.8';
-                    globalGhost.style.display = 'none'; // Starts hidden because we are inside the canvas
+                    globalGhost.style.display = 'none'; 
                     document.body.appendChild(globalGhost);
                 }
             });
 
-            // NEW: Track the mouse when dragged off the wall
             newCol.addEventListener('drag', (ev) => {
                 const globalGhost = document.getElementById('global-ghost');
                 if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
@@ -513,8 +515,16 @@
                         globalGhost.style.display = 'none'; 
                     } else {
                         globalGhost.style.display = 'block'; 
-                        globalGhost.style.left = (ev.clientX + 10) + 'px';
-                        globalGhost.style.top = (ev.clientY + 10) + 'px';
+                        
+                        // Recalculate true size to position perfectly under your cursor offset
+                        const totalScale = baseScale * currentZoom;
+                        const itemW = parseFloat(newCol.dataset.realWidth) * PIXELS_PER_CM * totalScale;
+                        const itemH = parseFloat(newCol.dataset.realHeight) * PIXELS_PER_CM * totalScale;
+                        const scaledOffsetX = dragData.offsetX * totalScale;
+                        const scaledOffsetY = dragData.offsetY * totalScale;
+                        
+                        globalGhost.style.left = (ev.clientX - (itemW / 2) - scaledOffsetX) + 'px';
+                        globalGhost.style.top = (ev.clientY - (itemH / 2) - scaledOffsetY) + 'px';
                     }
                 }
             });
@@ -581,14 +591,9 @@
                     `;
 
                     itemDiv.addEventListener('dragstart', (ev) => {
-                        const rect = itemDiv.getBoundingClientRect();
-                        const mouseX = ev.clientX || (ev.touches && ev.touches[0].clientX);
-                        const mouseY = ev.clientY || (ev.touches && ev.touches[0].clientY);
-                        
-                        const centerX = rect.left + rect.width / 2;
-                        const centerY = rect.top + rect.height / 2;
                         const totalScale = baseScale * currentZoom;
 
+                        // Zero out the offset so new items pop directly into the center of the cursor!
                         dragData = {
                             name: item.name,
                             image: item.image,
@@ -597,8 +602,8 @@
                             sourceElement: null, 
                             sourceMode: document.getElementById('placement-mode').value,
                             rotation: 0,
-                            offsetX: (mouseX - centerX) / totalScale,
-                            offsetY: (mouseY - centerY) / totalScale
+                            offsetX: 0, 
+                            offsetY: 0
                         };
                         ev.dataTransfer.setData('text/plain', dragData.name); 
                         
@@ -606,7 +611,10 @@
                         emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                         if (ev.dataTransfer.setDragImage) ev.dataTransfer.setDragImage(emptyImage, 0, 0);
 
-                        // NEW: Spawn a custom floating image for the sidebar!
+                        // TRUE SIZE GHOST: Calculated perfectly based on wall zoom!
+                        const itemW = parseFloat(item.width) * PIXELS_PER_CM * totalScale;
+                        const itemH = parseFloat(item.height) * PIXELS_PER_CM * totalScale;
+
                         if (!document.getElementById('global-ghost')) {
                             const globalGhost = document.createElement('img');
                             globalGhost.id = 'global-ghost';
@@ -614,14 +622,13 @@
                             globalGhost.style.position = 'fixed';
                             globalGhost.style.zIndex = '999999';
                             globalGhost.style.pointerEvents = 'none';
-                            globalGhost.style.width = '80px'; 
-                            globalGhost.style.height = 'auto';
+                            globalGhost.style.width = itemW + 'px'; 
+                            globalGhost.style.height = itemH + 'px';
                             globalGhost.style.opacity = '0.8';
                             document.body.appendChild(globalGhost);
                         }
                     });
 
-                    // NEW: Make the image follow the mouse, but hide it if over the canvas
                     itemDiv.addEventListener('drag', (ev) => {
                         const globalGhost = document.getElementById('global-ghost');
                         if (globalGhost && ev.clientX !== 0 && ev.clientY !== 0) {
@@ -630,16 +637,21 @@
                                                    ev.clientY >= canvasRect.top && ev.clientY <= canvasRect.bottom;
                             
                             if (isInsideCanvas) {
-                                globalGhost.style.display = 'none'; // Inside canvas? Let the red/green wall ghost take over!
+                                globalGhost.style.display = 'none'; 
                             } else {
-                                globalGhost.style.display = 'block'; // Outside canvas? Show this mini-ghost!
-                                globalGhost.style.left = (ev.clientX + 10) + 'px';
-                                globalGhost.style.top = (ev.clientY + 10) + 'px';
+                                globalGhost.style.display = 'block'; 
+                                
+                                const totalScale = baseScale * currentZoom;
+                                const itemW = parseFloat(item.width) * PIXELS_PER_CM * totalScale;
+                                const itemH = parseFloat(item.height) * PIXELS_PER_CM * totalScale;
+                                
+                                // Center perfectly on cursor
+                                globalGhost.style.left = (ev.clientX - (itemW / 2)) + 'px';
+                                globalGhost.style.top = (ev.clientY - (itemH / 2)) + 'px';
                             }
                         }
                     });
 
-                    // NEW: Destroy the ghost when the user lets go of the mouse
                     itemDiv.addEventListener('dragend', () => {
                         const globalGhost = document.getElementById('global-ghost');
                         if (globalGhost) globalGhost.remove();
